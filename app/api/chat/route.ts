@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.8-flash";
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 12_000;
 const MAX_TOTAL_LENGTH = 30_000;
@@ -103,12 +103,23 @@ export async function POST(request: NextRequest) {
 
   if (!providerResponse.ok) {
     const status = providerResponse.status === 429 ? 429 : 502;
+    const providerError = await providerResponse.json().catch(() => null);
+    const providerMessage =
+      typeof providerError === "object" &&
+      providerError !== null &&
+      "error" in providerError &&
+      typeof providerError.error === "object" &&
+      providerError.error !== null &&
+      "message" in providerError.error &&
+      typeof providerError.error.message === "string"
+        ? providerError.error.message
+        : null;
     return NextResponse.json(
       {
         error:
           providerResponse.status === 429
             ? "Gemini rate limit reached. Wait a moment and try again."
-            : `Gemini request failed with status ${providerResponse.status}. Check the server key and provider configuration.`,
+            : `Gemini request failed with status ${providerResponse.status}.${providerMessage ? ` ${providerMessage}` : " Check the server key and provider configuration."}`,
       },
       { status },
     );
