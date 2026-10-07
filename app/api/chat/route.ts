@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const MODEL = "gemini-3.8-flash";
+const MODELS = ["gemini-flash-lite-latest", "gemini-3.8-flash"];
+const MAX_PROVIDER_ATTEMPTS = 2;
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 12_000;
 const MAX_TOTAL_LENGTH = 30_000;
@@ -70,40 +71,68 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "The last conversation message must be from the learner." }, { status: 400 });
   }
 
-  let providerResponse: Response;
+  const payload = JSON.stringify({
+    system_instruction: {
+      parts: [
+        { text: SYSTEM_INSTRUCTION },
+        ...(typeof exerciseContext === "string" ? [{ text: `Exercise context from the app: ${exerciseContext}` }] : []),
+      ],
+    },
+    contents: conversation.map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }],
+    })),
+    generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
+  });
+
+  let providerResponse: Response | undefined;
   try {
-    providerResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [
-              { text: SYSTEM_INSTRUCTION },
-              ...(typeof exerciseContext === "string" ? [{ text: `Exercise context from the app: ${exerciseContext}` }] : []),
-            ],
+    for (const model of MODELS) {
+      for (let attempt = 0; attempt < MAX_PROVIDER_ATTEMPTS; attempt++) {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body: payload,
+            signal: request.signal,
+            cache: "no-store",
           },
-          contents: conversation.map((message) => ({
-            role: message.role === "assistant" ? "model" : "user",
-            parts: [{ text: message.content }],
-          })),
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
-        }),
-        signal: request.signal,
-        cache: "no-store",
-      },
-    );
+        );
+        providerResponse = response;
+
+        if (response.ok) break;
+
+        const transient = [429, 500, 502, 503, 504].includes(response.status);
+        if (!transient) break;
+
+        if (attempt + 1 < MAX_PROVIDER_ATTEMPTS) {
+          const retryAfter = Number(response.headers.get("retry-after"));
+          const waitMs = Number.isFinite(retryAfter)
+            ? Math.min(Math.max(retryAfter * 1000, 0), 2_000)
+            : 300 * 2 ** attempt;
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
+      }
+
+      if (providerResponse?.ok) break;
+      if (providerResponse?.status !== 429 && ![500, 502, 503, 504].includes(providerResponse?.status ?? 0)) break;
+    }
   } catch {
     return NextResponse.json({ error: "Could not connect to Gemini. Check the server network and try again." }, { status: 502 });
   }
 
-  if (!providerResponse.ok) {
-    const status = providerResponse.status === 429 ? 429 : 502;
-    const providerError = await providerResponse.json().catch(() => null);
+  const finalResponse = providerResponse;
+  if (!finalResponse) {
+    return NextResponse.json({ error: "Could not connect to Gemini. Check the server network and try again." }, { status: 502 });
+  }
+
+  if (!finalResponse.ok) {
+    const status = finalResponse.status === 429 ? 429 : 502;
+    const providerError = await finalResponse.json().catch(() => null);
     const providerMessage =
       typeof providerError === "object" &&
       providerError !== null &&
@@ -117,19 +146,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          providerResponse.status === 429
+          finalResponse.status === 429
             ? "Gemini rate limit reached. Wait a moment and try again."
-            : `Gemini request failed with status ${providerResponse.status}.${providerMessage ? ` ${providerMessage}` : " Check the server key and provider configuration."}`,
+            : `Gemini request failed with status ${finalResponse.status}.${providerMessage ? ` ${providerMessage}` : " Check the server key and provider configuration."}`,
       },
       { status },
     );
   }
 
-  if (!providerResponse.body) {
+  if (!finalResponse.body) {
     return NextResponse.json({ error: "Gemini returned an empty response stream." }, { status: 502 });
   }
 
-  return new Response(providerResponse.body, {
+  return new Response(finalResponse.body, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
