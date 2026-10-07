@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDatabaseErrors } from "@/lib/database-api";
+import { checkSameOrigin } from "@/lib/auth";
+import { withAuthenticatedUser } from "@/lib/database-api";
 import { getDbPool } from "@/lib/db";
 import {
   getPublicPlacementQuestions,
@@ -32,24 +33,28 @@ function publicAttempt(row: AttemptRow | undefined) {
 }
 
 export async function GET() {
-  return withDatabaseErrors(async () => {
+  return withAuthenticatedUser(async (user) => {
     const { rows } = await getDbPool().query<AttemptRow>(
       `SELECT id, status, answers, scores, recommended_level, submitted_at
        FROM placement_attempts
-       WHERE profile_id = 'owner'
+       WHERE profile_id = $1
        ORDER BY started_at DESC, id DESC
        LIMIT 1`,
+      [user.id],
     );
 
     return NextResponse.json({
       questions: getPublicPlacementQuestions(),
       attempt: publicAttempt(rows[0]),
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   });
 }
 
 export async function POST(request: NextRequest) {
-  return withDatabaseErrors(async () => {
+  return withAuthenticatedUser(async (user) => {
+    if (!checkSameOrigin(request)) {
+      return NextResponse.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
+    }
     let body: unknown;
     try {
       body = await request.json();
@@ -66,8 +71,9 @@ export async function POST(request: NextRequest) {
   if (input.action === "start") {
     const { rows } = await pool.query<AttemptRow>(
       `INSERT INTO placement_attempts (profile_id)
-       VALUES ('owner')
+       VALUES ($1)
        RETURNING id, status, answers, scores, recommended_level, submitted_at`,
+      [user.id],
     );
     return NextResponse.json({ attempt: publicAttempt(rows[0]) }, { status: 201 });
   }
@@ -89,9 +95,9 @@ export async function POST(request: NextRequest) {
       `UPDATE placement_attempts
        SET answers = answers || jsonb_build_object($2::text, $3::text),
            updated_at = NOW()
-       WHERE id = $1 AND profile_id = 'owner' AND status = 'in_progress'
+       WHERE id = $1 AND profile_id = $4 AND status = 'in_progress'
        RETURNING answers`,
-      [attemptId, question.id, input.choiceId],
+      [attemptId, question.id, input.choiceId, user.id],
     );
     if (!rows[0]) {
       return NextResponse.json({ error: "This placement attempt is no longer active." }, { status: 409 });
@@ -111,9 +117,9 @@ export async function POST(request: NextRequest) {
       const { rows } = await client.query<AttemptRow>(
         `SELECT id, status, answers, scores, recommended_level, submitted_at
          FROM placement_attempts
-         WHERE id = $1 AND profile_id = 'owner'
+         WHERE id = $1 AND profile_id = $2
          FOR UPDATE`,
-        [attemptId],
+        [attemptId, user.id],
       );
       const attempt = rows[0];
       if (!attempt || attempt.status !== "in_progress") {
@@ -137,9 +143,9 @@ export async function POST(request: NextRequest) {
              recommended_level = $3,
              submitted_at = $4,
              updated_at = $4
-         WHERE id = $1
+         WHERE id = $1 AND profile_id = $5
          RETURNING id, status, answers, scores, recommended_level, submitted_at`,
-        [attemptId, JSON.stringify(result), result.recommendedLevel, submittedAt],
+        [attemptId, JSON.stringify(result), result.recommendedLevel, submittedAt, user.id],
       );
       await client.query(
         `UPDATE learner_profile
@@ -147,8 +153,8 @@ export async function POST(request: NextRequest) {
              recommended_level = $2,
              placement_scores = $3::jsonb,
              updated_at = $1
-         WHERE id = 'owner'`,
-        [submittedAt, result.recommendedLevel, JSON.stringify(result)],
+         WHERE id = $4`,
+        [submittedAt, result.recommendedLevel, JSON.stringify(result), user.id],
       );
       await client.query("COMMIT");
       return NextResponse.json({ attempt: publicAttempt(updatedRows[0]) });

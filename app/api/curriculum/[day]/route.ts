@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDatabaseErrors } from "@/lib/database-api";
+import { checkSameOrigin } from "@/lib/auth";
+import { withAuthenticatedUser } from "@/lib/database-api";
 import { getDbPool } from "@/lib/db";
 import {
   getLearningDay,
@@ -36,7 +37,7 @@ function readDay(value: string) {
   return Number.isInteger(day) && day >= 1 && day <= 4 ? day : null;
 }
 
-async function getAccess(day: number) {
+async function getAccess(day: number, profileId: string) {
   const pool = getDbPool();
   const { rows } = await pool.query<{
     current_day: number;
@@ -44,7 +45,8 @@ async function getAccess(day: number) {
   }>(
     `SELECT current_day, placement_completed_at
      FROM learner_profile
-     WHERE id = 'owner'`,
+     WHERE id = $1`,
+    [profileId],
   );
   const learner = rows[0];
   if (!learner?.placement_completed_at) {
@@ -56,16 +58,16 @@ async function getAccess(day: number) {
       status: 403 as const,
     };
   }
-  return { pool, currentDay: learner.current_day };
+  return { pool, currentDay: learner.current_day, profileId };
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
-  return withDatabaseErrors(async () => {
+  return withAuthenticatedUser(async (user) => {
     const dayNumber = readDay((await context.params).day);
     const day = dayNumber ? getLearningDay(dayNumber) : undefined;
     if (!day) return NextResponse.json({ error: "This learning day does not exist." }, { status: 404 });
 
-    const access = await getAccess(day.day);
+    const access = await getAccess(day.day, user.id);
     if ("error" in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
@@ -75,22 +77,22 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       access.pool.query<{ lesson_id: string; status: string }>(
         `SELECT lesson_id, status
          FROM lesson_progress
-         WHERE profile_id = 'owner' AND lesson_id = ANY($1::text[])`,
-        [lessonIds],
+         WHERE profile_id = $1 AND lesson_id = ANY($2::text[])`,
+        [access.profileId, lessonIds],
       ),
       access.pool.query<AttemptRow>(
         `SELECT id, status, answers, score, passed, submitted_at
          FROM day_assessment_attempts
-         WHERE profile_id = 'owner' AND day = $1
+         WHERE profile_id = $1 AND day = $2
          ORDER BY started_at DESC, id DESC
          LIMIT 1`,
-        [day.day],
+        [access.profileId, day.day],
       ),
       access.pool.query<{ best_score: number; passed_at: Date }>(
         `SELECT best_score, passed_at
          FROM learner_day_results
-         WHERE profile_id = 'owner' AND day = $1`,
-        [day.day],
+         WHERE profile_id = $1 AND day = $2`,
+        [access.profileId, day.day],
       ),
     ]);
 
@@ -102,29 +104,35 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     );
     const dayResultRow = dayResult.rows[0];
 
-    return NextResponse.json({
-      day: {
-        day: day.day,
-        title: day.title,
-        topic: day.topic,
-        lessons: day.lessons.map((lesson) => ({
-          ...lesson,
-          status: progress.get(lesson.id) ?? "not_started",
-        })),
-        questions: getPublicQuestions(day),
-        passThreshold: PASS_THRESHOLD,
-        allLessonsComplete: complete,
-        bestScore: dayResultRow?.best_score ?? null,
-        passedAt: dayResultRow?.passed_at.toISOString() ?? null,
-        currentDay: access.currentDay,
-        attempt: publicAttempt(attemptResult.rows[0]),
+    return NextResponse.json(
+      {
+        day: {
+          day: day.day,
+          title: day.title,
+          topic: day.topic,
+          lessons: day.lessons.map((lesson) => ({
+            ...lesson,
+            status: progress.get(lesson.id) ?? "not_started",
+          })),
+          questions: getPublicQuestions(day),
+          passThreshold: PASS_THRESHOLD,
+          allLessonsComplete: complete,
+          bestScore: dayResultRow?.best_score ?? null,
+          passedAt: dayResultRow?.passed_at.toISOString() ?? null,
+          currentDay: access.currentDay,
+          attempt: publicAttempt(attemptResult.rows[0]),
+        },
       },
-    });
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   });
 }
 
 export async function POST(request: NextRequest, context: RouteContext) {
-  return withDatabaseErrors(async () => {
+  return withAuthenticatedUser(async (user) => {
+    if (!checkSameOrigin(request)) {
+      return NextResponse.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
+    }
     const dayNumber = readDay((await context.params).day);
     const day = dayNumber ? getLearningDay(dayNumber) : undefined;
     if (!day) return NextResponse.json({ error: "This learning day does not exist." }, { status: 404 });
@@ -140,7 +148,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const input = body as Record<string, unknown>;
-    const access = await getAccess(day.day);
+    const access = await getAccess(day.day, user.id);
     if ("error" in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
@@ -155,8 +163,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         const previousLesson = day.lessons[lessonIndex - 1];
         const { rows } = await access.pool.query<{ status: string }>(
           `SELECT status FROM lesson_progress
-           WHERE profile_id = 'owner' AND lesson_id = $1`,
-          [previousLesson.id],
+           WHERE profile_id = $1 AND lesson_id = $2`,
+          [access.profileId, previousLesson.id],
         );
         if (rows[0]?.status !== "completed") {
           return NextResponse.json(
@@ -169,14 +177,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (input.action === "start-lesson") {
         await access.pool.query(
           `INSERT INTO lesson_progress (profile_id, lesson_id, status)
-           VALUES ('owner', $1, 'in_progress')
+           VALUES ($1, $2, 'in_progress')
            ON CONFLICT (profile_id, lesson_id) DO UPDATE
            SET status = CASE
                  WHEN lesson_progress.status = 'completed' THEN 'completed'
                  ELSE 'in_progress'
                END,
                updated_at = NOW()`,
-          [lesson.id],
+          [access.profileId, lesson.id],
         );
         return NextResponse.json({ started: true });
       }
@@ -184,8 +192,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const { rowCount } = await access.pool.query(
         `UPDATE lesson_progress
          SET status = 'completed', finished_at = NOW(), updated_at = NOW()
-         WHERE profile_id = 'owner' AND lesson_id = $1 AND status = 'in_progress'`,
-        [lesson.id],
+         WHERE profile_id = $1 AND lesson_id = $2 AND status = 'in_progress'`,
+        [access.profileId, lesson.id],
       );
       if (!rowCount) {
         return NextResponse.json({ error: "Start this lesson before completing it." }, { status: 409 });
@@ -197,8 +205,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const { rows } = await access.pool.query<{ lesson_id: string; status: string }>(
         `SELECT lesson_id, status
          FROM lesson_progress
-         WHERE profile_id = 'owner' AND lesson_id = ANY($1::text[])`,
-        [day.lessons.map((lesson) => lesson.id)],
+         WHERE profile_id = $1 AND lesson_id = ANY($2::text[])`,
+        [access.profileId, day.lessons.map((lesson) => lesson.id)],
       );
       const statusByLesson = new Map(rows.map(({ lesson_id, status }) => [lesson_id, status]));
       const missingLesson = day.lessons.find(
@@ -212,9 +220,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
       const { rows: attemptRows } = await access.pool.query<AttemptRow>(
         `INSERT INTO day_assessment_attempts (profile_id, day)
-         VALUES ('owner', $1)
+         VALUES ($1, $2)
          RETURNING id, status, answers, score, passed, submitted_at`,
-        [day.day],
+        [access.profileId, day.day],
       );
       return NextResponse.json({ attempt: publicAttempt(attemptRows[0]) }, { status: 201 });
     }
@@ -235,9 +243,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
         `UPDATE day_assessment_attempts
          SET answers = answers || jsonb_build_object($3::text, $4::text),
              updated_at = NOW()
-         WHERE id = $1 AND profile_id = 'owner' AND day = $2 AND status = 'in_progress'
+         WHERE id = $1 AND profile_id = $2 AND day = $5 AND status = 'in_progress'
          RETURNING answers`,
-        [attemptId, day.day, question.id, input.choiceId],
+        [attemptId, access.profileId, question.id, input.choiceId, day.day],
       );
       if (!rows[0]) {
         return NextResponse.json({ error: "This day checkpoint attempt is no longer active." }, { status: 409 });
@@ -257,9 +265,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
         const { rows } = await client.query<AttemptRow>(
           `SELECT id, status, answers, score, passed, submitted_at
            FROM day_assessment_attempts
-           WHERE id = $1 AND profile_id = 'owner' AND day = $2
+           WHERE id = $1 AND profile_id = $3 AND day = $2
            FOR UPDATE`,
-          [attemptId, day.day],
+          [attemptId, day.day, access.profileId],
         );
         const attempt = rows[0];
         if (!attempt || attempt.status !== "in_progress") {
@@ -286,25 +294,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
         const { rows: updatedRows } = await client.query<AttemptRow>(
           `UPDATE day_assessment_attempts
            SET status = 'completed', score = $2, passed = $3, submitted_at = $4, updated_at = $4
-           WHERE id = $1
+           WHERE id = $1 AND profile_id = $5
            RETURNING id, status, answers, score, passed, submitted_at`,
-          [attemptId, score, passed, submittedAt],
+          [attemptId, score, passed, submittedAt, access.profileId],
         );
 
         if (passed) {
           await client.query(
             `INSERT INTO learner_day_results (profile_id, day, best_score, passed_at)
-             VALUES ('owner', $1, $2, $3)
+             VALUES ($1, $2, $3, $4)
              ON CONFLICT (profile_id, day) DO UPDATE
              SET best_score = GREATEST(learner_day_results.best_score, EXCLUDED.best_score),
                  passed_at = LEAST(learner_day_results.passed_at, EXCLUDED.passed_at)`,
-            [day.day, score, submittedAt],
+            [access.profileId, day.day, score, submittedAt],
           );
           await client.query(
             `UPDATE learner_profile
              SET current_day = GREATEST(current_day, LEAST($1, 4)), updated_at = $2
-             WHERE id = 'owner'`,
-            [day.day + 1, submittedAt],
+             WHERE id = $3`,
+            [day.day + 1, submittedAt, access.profileId],
           );
         }
 

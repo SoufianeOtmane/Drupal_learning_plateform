@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDatabaseErrors } from "@/lib/database-api";
+import { checkSameOrigin } from "@/lib/auth";
+import { withAuthenticatedUser } from "@/lib/database-api";
 import { getDbPool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  return withDatabaseErrors(async () => {
+  return withAuthenticatedUser(async (user) => {
+    if (!checkSameOrigin(request)) {
+      return NextResponse.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
+    }
     let body: unknown;
     try {
       body = await request.json();
@@ -19,7 +23,8 @@ export async function POST(request: NextRequest) {
   const input = body as Record<string, unknown>;
   const pool = getDbPool();
   const { rows: profileRows } = await pool.query<{ placement_completed_at: Date | null }>(
-    "SELECT placement_completed_at FROM learner_profile WHERE id = 'owner'",
+    "SELECT placement_completed_at FROM learner_profile WHERE id = $1",
+    [user.id],
   );
   if (!profileRows[0]?.placement_completed_at) {
     return NextResponse.json(
@@ -33,7 +38,8 @@ export async function POST(request: NextRequest) {
       `UPDATE lesson_progress
        SET status = CASE WHEN status = 'completed' THEN status ELSE 'in_progress' END,
            updated_at = NOW()
-       WHERE profile_id = 'owner' AND lesson_id = 'day-1-web-request'`,
+       WHERE profile_id = $1 AND lesson_id = 'day-1-web-request'`,
+      [user.id],
     );
     return NextResponse.json({ started: true });
   }
@@ -50,9 +56,9 @@ export async function POST(request: NextRequest) {
        SET practice_answer = $1,
            practice_correct = $2,
            updated_at = NOW()
-       WHERE profile_id = 'owner' AND lesson_id = 'day-1-web-request'
+       WHERE profile_id = $3 AND lesson_id = 'day-1-web-request'
          AND status = 'in_progress'`,
-      [input.answer, correct],
+      [input.answer, correct, user.id],
     );
     if (!rowCount) {
       return NextResponse.json({ error: "Start the Day 1 lesson before saving practice." }, { status: 409 });
@@ -64,8 +70,9 @@ export async function POST(request: NextRequest) {
     const { rowCount } = await pool.query(
       `UPDATE lesson_progress
        SET status = 'completed', finished_at = NOW(), updated_at = NOW()
-       WHERE profile_id = 'owner' AND lesson_id = 'day-1-web-request'
+       WHERE profile_id = $1 AND lesson_id = 'day-1-web-request'
          AND status = 'in_progress'`,
+      [user.id],
     );
     if (!rowCount) {
       return NextResponse.json({ error: "Start the Day 1 lesson before finishing it." }, { status: 409 });

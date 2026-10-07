@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getDbPool } from "@/lib/db";
-import { withDatabaseErrors } from "@/lib/database-api";
+import { withAuthenticatedUser } from "@/lib/database-api";
 import type { LearnerState, PlacementSummary } from "@/lib/learner-types";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  return withDatabaseErrors(async () => {
+  return withAuthenticatedUser(async (user) => {
     const { rows } = await getDbPool().query<{
       current_day: number;
       placement_completed_at: Date | null;
@@ -29,7 +29,8 @@ export async function GET() {
        FROM learner_profile AS profile
        LEFT JOIN lesson_progress AS lesson
          ON lesson.profile_id = profile.id AND lesson.lesson_id = 'day-1-web-request'
-       WHERE profile.id = 'owner'`,
+       WHERE profile.id = $1`,
+      [user.id],
     );
 
     const row = rows[0];
@@ -41,7 +42,8 @@ export async function GET() {
     }>(
       `SELECT day, best_score, passed_at
        FROM learner_day_results
-       WHERE profile_id = 'owner'`,
+       WHERE profile_id = $1`,
+      [user.id],
     );
 
     const placement =
@@ -53,22 +55,25 @@ export async function GET() {
           }
         : null;
 
-    return NextResponse.json({
-      placement,
-      currentDay: Math.min(row.current_day, 4),
-      completedDays: Object.fromEntries(
-        completedDayRows.map(({ day, best_score, passed_at }) => [
-          day,
-          { score: best_score, passedAt: passed_at.toISOString() },
-        ]),
-      ),
-      lesson: {
-        id: "day-1-web-request",
-        status: row.lesson_status ?? "not_started",
-        practiceAnswer: row.practice_answer,
-        practiceCorrect: row.practice_correct,
-        finishedAt: row.finished_at?.toISOString() ?? null,
+    return NextResponse.json(
+      {
+        placement,
+        currentDay: Math.min(row.current_day, 4),
+        completedDays: Object.fromEntries(
+          completedDayRows.map(({ day, best_score, passed_at }) => [
+            day,
+            { score: best_score, passedAt: passed_at.toISOString() },
+          ]),
+        ),
+        lesson: {
+          id: "day-1-web-request",
+          status: row.lesson_status ?? "not_started",
+          practiceAnswer: row.practice_answer,
+          practiceCorrect: row.practice_correct,
+          finishedAt: row.finished_at?.toISOString() ?? null,
+        },
       },
-    } satisfies LearnerState);
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
   });
 }

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkSameOrigin } from "@/lib/auth";
+import { withAuthenticatedUser } from "@/lib/database-api";
 
 const MODELS = ["gemini-flash-lite-latest", "gemini-3.8-flash"];
 const MAX_PROVIDER_ATTEMPTS = 2;
@@ -37,6 +39,15 @@ function isChatMessage(value: unknown): value is ChatMessage {
 }
 
 export async function POST(request: NextRequest) {
+  return withAuthenticatedUser(async () => {
+    if (!checkSameOrigin(request)) {
+      return NextResponse.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
+    }
+    return handleChat(request);
+  });
+}
+
+async function handleChat(request: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
