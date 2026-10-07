@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import AppSidebar, { learningDays } from "@/components/app-sidebar";
 import {
   AlarmClock,
   ArrowDown,
@@ -10,21 +11,18 @@ import {
   Bot,
   Check,
   CheckCheck,
-  ChevronDown,
   CircleHelp,
   Code2,
   Command,
   Flame,
   FlaskConical,
   Gauge,
-  GraduationCap,
   Lightbulb,
   LockKeyhole,
   Menu,
   MessageSquareText,
   MoreHorizontal,
   Play,
-  Plus,
   Search,
   Send,
   ShieldCheck,
@@ -38,16 +36,6 @@ type ChatMessage = {
   role: "mentor" | "you";
   text: string;
 };
-
-const lessons = [
-  { day: 8, title: "Module anatomy", state: "done" },
-  { day: 9, title: "Menu system", state: "current" },
-  { day: 10, title: "Form API", state: "upcoming" },
-  { day: 11, title: "Database API", state: "locked" },
-  { day: 12, title: "Render API", state: "locked" },
-  { day: 13, title: "Entity & fields", state: "locked" },
-  { day: 14, title: "Blocks & cron", state: "locked" },
-];
 
 const hintCosts = [3, 6, 10] as const;
 
@@ -291,83 +279,12 @@ export default function LearningDashboard() {
 
   return (
     <main className={`app-shell ${focusMode ? "focus-active" : ""}`}>
-      {mobileMenuOpen && (
-        <button
-          className="mobile-scrim"
-          aria-label="Close navigation"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-      <aside className={`sidebar ${mobileMenuOpen ? "sidebar-open" : ""}`}>
-        <div className="brand">
-          <div className="brand-mark"><Code2 size={19} strokeWidth={2.4} /></div>
-          <div>
-            <div className="brand-name">drupal<span>mentor</span></div>
-            <div className="brand-caption">THE DEVELOPER TRACK</div>
-          </div>
-          <button className="icon-button mobile-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="track-switcher">
-          <div className="track-icon"><GraduationCap size={17} /></div>
-          <div className="track-copy"><span>Learning track</span><strong>Drupal 7 · Core</strong></div>
-          <ChevronDown size={15} className="muted-icon" />
-        </div>
-
-        <nav className="primary-nav" aria-label="Main navigation">
-          <span className="nav-label">WORKSPACE</span>
-          <button className="nav-item"><Gauge size={17} /> Overview</button>
-          <button className="nav-item nav-active"><BookOpen size={17} /> Learning path <span className="nav-dot" /></button>
-          <button className="nav-item"><FlaskConical size={17} /> Practice lab <span className="nav-count">2</span></button>
-          <button className="nav-item"><MessageSquareText size={17} /> Mentor chat</button>
-          <button className="nav-item"><ShieldCheck size={17} /> Skill profile</button>
-        </nav>
-
-        <div className="path-heading">
-          <span className="nav-label">YOUR 30-DAY PATH</span>
-          <button className="text-icon" aria-label="Expand learning path"><MoreHorizontal size={18} /></button>
-        </div>
-        <div className="path-level">
-          <span className="level-number">02</span>
-          <div><strong>Module developer</strong><span>Day 8 — 16</span></div>
-          <ChevronDown size={14} />
-        </div>
-        <div className="day-list" aria-label="Learning path days">
-          {lessons.map((lesson) => (
-            <button
-              className={`day-item ${activeDay === lesson.day ? "day-active" : ""}`}
-              key={lesson.day}
-              onClick={() => lesson.state !== "locked" && lesson.state !== "upcoming" && selectDay(lesson.day)}
-              disabled={lesson.state === "locked" || lesson.state === "upcoming"}
-              aria-current={activeDay === lesson.day ? "step" : undefined}
-            >
-              <span className={`day-marker ${lesson.state}`}>
-                {lesson.state === "done" ? <Check size={12} /> : lesson.state === "locked" ? <LockKeyhole size={11} /> : lesson.day}
-              </span>
-              <span className="day-title">{lesson.title}</span>
-              {lesson.state === "current" && <span className="day-now">NOW</span>}
-            </button>
-          ))}
-          <button className="show-days" onClick={() => setNotice("The remaining days unlock as you master each level.")}>
-            <Plus size={14} /> View all 30 days
-          </button>
-        </div>
-
-        <div className="sidebar-bottom">
-          <div className="streak-card">
-            <div className="streak-icon"><Flame size={18} fill="currentColor" /></div>
-            <div><strong>6 day streak</strong><span>One more day to beat your best</span></div>
-            <ArrowUpRight size={15} />
-          </div>
-          <button className="profile-button">
-            <div className="avatar">S</div>
-            <div className="profile-name"><strong>Soufiane</strong><span>Apprentice · Level 2</span></div>
-            <MoreHorizontal size={17} />
-          </button>
-        </div>
-      </aside>
+      <AppSidebar
+        mobileOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        activeDay={activeDay}
+        onDaySelect={selectDay}
+      />
 
       <section className="main-column">
         <header className="topbar">
@@ -485,7 +402,7 @@ export default function LearningDashboard() {
                     <button className="icon-button card-menu" aria-label="Curriculum options"><MoreHorizontal size={18} /></button>
                   </div>
                   <div className="curriculum-days">
-                    {lessons.slice(0, 5).map((lesson, index) => (
+                    {learningDays.slice(0, 5).map((lesson, index) => (
                       <button
                         key={lesson.day}
                         className={`curriculum-day ${lesson.state} ${activeDay === lesson.day ? "selected" : ""}`}
