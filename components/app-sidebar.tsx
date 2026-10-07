@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   BookOpen,
   Check,
   ChevronDown,
-  Code2,
   Flame,
   FlaskConical,
   Gauge,
@@ -65,11 +65,15 @@ export default function AppSidebar({
       )}
       <aside className={`sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
         <div className="brand">
-          <div className="brand-mark"><Code2 size={19} strokeWidth={2.4} /></div>
-          <div>
-            <div className="brand-name">drupal<span>mentor</span></div>
-            <div className="brand-caption">THE DEVELOPER TRACK</div>
-          </div>
+          <Link href="/overview" className="brand-logo-link" aria-label="Drupal Mentor overview" onClick={onClose}>
+            <Image
+              src="/images/drupalmentor-logo.svg"
+              alt="Drupal Mentor"
+              width={168}
+              height={45}
+              priority
+            />
+          </Link>
           <button className="icon-button mobile-close" onClick={onClose} aria-label="Close menu">
             <X size={18} />
           </button>
@@ -142,7 +146,7 @@ export default function AppSidebar({
         <div className="sidebar-bottom">
           <div className="streak-card">
             <div className="streak-icon"><Flame size={18} fill="currentColor" /></div>
-            <div><strong>6 day streak</strong><span>One more day to beat your best</span></div>
+            <div><strong>6 day streak</strong><span>Best: 7 days · 1 day to match</span></div>
             <ArrowUpRight size={15} />
           </div>
           <button className="profile-button">
