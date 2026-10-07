@@ -2,6 +2,7 @@ CREATE TABLE learner_profile (
   id TEXT PRIMARY KEY CHECK (id = 'owner'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  current_day SMALLINT NOT NULL DEFAULT 1 CHECK (current_day BETWEEN 1 AND 31),
   placement_completed_at TIMESTAMPTZ,
   recommended_level SMALLINT CHECK (recommended_level BETWEEN 0 AND 5),
   placement_scores JSONB

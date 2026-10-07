@@ -22,6 +22,8 @@ export type PlacementSummary = {
 
 export type LearnerState = {
   placement: PlacementSummary | null;
+  currentDay: number;
+  completedDays: Record<number, { score: number; passedAt: string }>;
   lesson: {
     id: "day-1-web-request";
     status: "not_started" | "in_progress" | "completed";
