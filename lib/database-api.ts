@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser, type AuthenticatedUser } from "@/lib/auth";
 
 export async function withDatabaseErrors(
-  handler: () => Promise<NextResponse>,
-): Promise<NextResponse> {
+  handler: () => Promise<Response>,
+): Promise<Response> {
   try {
     return await handler();
   } catch (error) {
@@ -14,4 +15,16 @@ export async function withDatabaseErrors(
         : "The learner database could not be reached. Verify PostgreSQL is running and DATABASE_URL is correct.";
     return NextResponse.json({ error: message }, { status: 503 });
   }
+}
+
+export async function withAuthenticatedUser(
+  handler: (user: AuthenticatedUser) => Promise<Response>,
+): Promise<Response> {
+  return withDatabaseErrors(async () => {
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Sign in to access your learning progress." }, { status: 401 });
+    }
+    return handler(user);
+  });
 }
