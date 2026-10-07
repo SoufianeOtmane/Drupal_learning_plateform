@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Bot,
   Check,
-  CheckCheck,
   CircleHelp,
   Code2,
   Flame,
@@ -34,8 +33,6 @@ type ChatMessage = {
   text: string;
 };
 
-const hintCosts = [3, 6, 10] as const;
-
 const lessonDetails: Record<
   number,
   {
@@ -47,6 +44,18 @@ const lessonDetails: Record<
     firstStep: string;
   }
 > = {
+  1: {
+    title: "Foundations check",
+    topic: "PHP, web basics, SQL, Git, and command-line foundations",
+    minutes: 30,
+    hints: [
+      "Start with what you already know: PHP, HTML/CSS, SQL, Git, or the terminal.",
+      "You do not need to write a Drupal module yet. We will check one prerequisite at a time.",
+      "Pick one unfamiliar term and I will explain it with a small example before asking you to try anything.",
+    ],
+    testQuestion: "Which of PHP, HTML/CSS, SQL, Git, and command-line tools have you used before?",
+    firstStep: "Tell me what you have and have not used before. We will start from your current level, one small concept at a time.",
+  },
   8: {
     title: "Module anatomy",
     topic: "The files that make Drupal modules work",
@@ -136,58 +145,27 @@ const lessonDetails: Record<
 const initialMessages: ChatMessage[] = [
   {
     role: "mentor",
-    text: "You passed the module anatomy check. Today, build a menu callback that only editors can access. Start with the access callback, not the page output.",
-  },
-  {
-    role: "you",
-    text: "Why does Drupal 7 use hook_menu() for page routes?",
-  },
-  {
-    role: "mentor",
-    text: "Because Drupal 7's menu router is also its route and access registry. hook_menu() declares the path, callback, and permission check together. In Drupal 7, do not reach for routes.yml — that is a later-version pattern.",
+    text: "Welcome. This is your first day, so I will not assume you know Drupal or require code immediately. Tell me what you have used before—PHP, HTML/CSS, SQL, Git, or the terminal—and we will build from there.",
   },
 ];
 
 function SkillBars() {
-  const skills = [
-    { name: "Module dev", value: 34, color: "violet" },
-    { name: "Theming", value: 18, color: "blue" },
-    { name: "Site building", value: 76, color: "mint" },
-    { name: "Security", value: 52, color: "amber" },
-  ];
-
   return (
-    <div className="skill-list">
-      {skills.map((skill) => (
-        <div className="skill-row" key={skill.name}>
-          <div className="skill-label">
-            <span>{skill.name}</span>
-            <span>{skill.value}%</span>
-          </div>
-          <div className="skill-track">
-            <span className={`skill-fill ${skill.color}`} style={{ width: `${skill.value}%` }} />
-          </div>
-        </div>
-      ))}
-    </div>
+    <p className="summary-note">No placement answers or graded attempts yet. Skill levels will appear after real assessments.</p>
   );
 }
 
 export default function LearningDashboard() {
-  const [activeDay, setActiveDay] = useState(9);
+  const [activeDay, setActiveDay] = useState(1);
   const [draft, setDraft] = useState("");
   const [hintCount, setHintCount] = useState(0);
-  const [lessonStarted, setLessonStarted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [attemptCode, setAttemptCode] = useState(
-    "function d7_mentor_menu() {\n  return array(\n    'admin/reports/mentor' => array(\n      'title' => 'Mentor report',\n      'page callback' => 'd7_mentor_report',\n      // Add the access callback and permission.\n    ),\n  );\n}",
-  );
+  const [attemptCode, setAttemptCode] = useState("");
   const [attemptSaved, setAttemptSaved] = useState(false);
   const [notice, setNotice] = useState("");
   const mentor = useMentorChat(initialMessages);
   const detail = lessonDetails[activeDay];
-  const hintPenalty = hintCosts.slice(0, hintCount).reduce((total, cost) => total + cost, 0);
 
   useEffect(() => {
     if (!focusMode) return;
@@ -203,21 +181,19 @@ export default function LearningDashboard() {
     if (!cleanText) return;
     if (cleanText.toLowerCase().includes("hint")) {
       if (hintCount >= 3) {
-        setNotice("All 3 hints used. Make an attempt before requesting more help.");
+        setNotice("You have used the 3 quick hints this session. Ask the mentor to explain the idea differently.");
         return;
       }
       const nextHint = hintCount + 1;
-      const nextCost = hintCosts[nextHint - 1];
-      const totalPenalty = hintCosts.slice(0, nextHint).reduce((total, cost) => total + cost, 0);
       setHintCount(nextHint);
       void mentor.sendMessage(
-        `${cleanText}. Give progressive hint ${nextHint} of 3 only; state that it costs ${nextCost} points and the total hint penalty is ${totalPenalty} points. Do not reveal the full solution.`,
-        `Current Drupal 7 exercise: ${detail.title}. Objective: ${detail.topic}. Required score: 80/100. The next level gate requires 85%.`,
+        `${cleanText}. This is hint ${nextHint} of 3 in this page session. Keep it beginner-friendly and do not demand code before explaining the prerequisite.`,
+        `Day 1 foundations check. Topic: ${detail.topic}. No placement result, exercise grade, or saved learner history is available yet.`,
       );
     } else {
       void mentor.sendMessage(
         cleanText,
-        `Current Drupal 7 exercise: ${detail.title}. Objective: ${detail.topic}. Required score: 80/100. The next level gate requires 85%.`,
+        `Day 1 foundations check. Topic: ${detail.topic}. No placement result, exercise grade, or saved learner history is available yet.`,
       );
     }
     setDraft("");
@@ -230,7 +206,7 @@ export default function LearningDashboard() {
 
   function handleQuickAction(action: string) {
     if (action === "Hint" && hintCount >= 3) {
-      setNotice("All 3 hints used. Make an attempt before requesting more help.");
+      setNotice("You have used the 3 quick hints this session. Ask the mentor to explain the idea differently.");
       return;
     }
     sendMessage(action === "Hint" ? "Give me a hint" : action);
@@ -238,7 +214,6 @@ export default function LearningDashboard() {
 
   function selectDay(day: number) {
     setActiveDay(day);
-    setLessonStarted(false);
     setHintCount(0);
     mentor.resetMessages([
       {
@@ -262,7 +237,7 @@ export default function LearningDashboard() {
         <header className="topbar">
           <div className="breadcrumbs">
             <button className="icon-button menu-toggle" onClick={() => setMobileMenuOpen(true)} aria-label="Open navigation"><Menu size={19} /></button>
-            <span>Learning path</span><span className="crumb-slash">/</span><span className="crumb-current">Module developer</span>
+            <span>Learning path</span><span className="crumb-slash">/</span>            <span className="crumb-current">Foundations check</span>
           </div>
           <div className="topbar-actions">
             {focusMode && (
@@ -270,7 +245,7 @@ export default function LearningDashboard() {
                 Exit focus <kbd>Esc</kbd>
               </button>
             )}
-            <div className="streak-pill"><Flame size={15} fill="currentColor" /><span>6</span></div>
+            <div className="streak-pill"><Flame size={15} fill="currentColor" /><span>—</span></div>
             <button className="search-button" onClick={() => setNotice("Search and command palette are coming soon.")}>
               <Search size={15} /><span>Search anything</span><kbd><Command size={11} /> K</kbd>
             </button>
@@ -281,9 +256,9 @@ export default function LearningDashboard() {
         <div className="dashboard-content">
           <div className="welcome-row">
             <div>
-              <div className="eyebrow"><span className="live-dot" /> {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date())} <span className="eyebrow-separator">/</span> DAY 09 OF 30</div>
-              <h1>Build it. Prove it. Move on.</h1>
-              <p className="welcome-subtitle">Today’s requirement: a secure Drupal 7 menu callback. No pass, no progression.</p>
+              <div className="eyebrow"><span className="live-dot" /> {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date())} <span className="eyebrow-separator">/</span> DAY 01 OF 30</div>
+              <h1>Start with your foundations.</h1>
+              <p className="welcome-subtitle">Day 1 is a placement check—not a Drupal coding test. We will establish what you know before setting the pace.</p>
             </div>
             <button
               className="focus-button"
@@ -303,24 +278,24 @@ export default function LearningDashboard() {
 
           <section className="summary-grid strict-scorecard" aria-label="Strict progress scorecard">
             <article className="summary-card">
-              <span className="card-overline">EXERCISE PASS RATE <span className="demo-data-tag">SAMPLE DATA</span></span>
-              <strong className="summary-number">67<span>%</span></strong>
-              <span className="summary-note">4 passed / 6 graded</span>
+              <span className="card-overline">EXERCISE PASS RATE</span>
+              <strong className="summary-number">—</strong>
+              <span className="summary-note">No graded attempts yet</span>
             </article>
             <article className="summary-card">
-              <span className="card-overline">WEAKEST SKILL</span>
-              <strong className="summary-number">Module dev</strong>
-              <span className="summary-note">34% mastery · priority review</span>
+              <span className="card-overline">SKILL MASTERY</span>
+              <strong className="summary-number">Not assessed</strong>
+              <span className="summary-note">Placement check is not connected yet</span>
             </article>
             <article className="summary-card">
-              <span className="card-overline">OVERDUE REVIEWS</span>
-              <strong className="summary-number">3 <span>items</span></strong>
-              <span className="summary-note">Oldest review: 2 days overdue</span>
+              <span className="card-overline">REVIEWS DUE</span>
+              <strong className="summary-number">Not tracked</strong>
+              <span className="summary-note">No learner review history yet</span>
             </article>
             <article className="summary-card gate-summary">
-              <span className="card-overline">LEVEL 2 GATE</span>
-              <strong className="summary-number">85<span>% required</span></strong>
-              <span className="summary-note">Locked · 7 days remaining</span>
+              <span className="card-overline">STARTING LEVEL</span>
+              <strong className="summary-number">Pending</strong>
+              <span className="summary-note">Determined after the placement check</span>
             </article>
           </section>
 
@@ -328,51 +303,51 @@ export default function LearningDashboard() {
             <div className="lesson-column">
               <section className="mission-card">
                 <div className="mission-topline">
-                  <div className="mission-tag"><span /> DAY {activeDay} <span className="tag-divider">/</span> MODULE DEVELOPMENT</div>
+                  <div className="mission-tag"><span /> DAY {activeDay} <span className="tag-divider">/</span> FOUNDATIONS</div>
                   <button className="text-icon" aria-label="More mission options"><MoreHorizontal size={19} /></button>
                 </div>
                 <div className="mission-main">
                   <div className="mission-copy">
-                    <h2>Secure menu callback</h2>
-                    <p>Register an admin report path. Restrict it to editors using Drupal 7’s permission API.</p>
+                    <h2>Find your starting point</h2>
+                    <p>Check your comfort with PHP, web basics, SQL, Git, and the command line. No prior Drupal knowledge is expected.</p>
                     <div className="mission-meta">
-                      <span><AlarmClock size={14} /> 25 min</span><i />
-                      <span><FlaskConical size={14} /> 1 attempt remaining</span><i />
-                      <span><ShieldCheck size={14} /> Pass mark 80</span>
+                      <span><AlarmClock size={14} /> 20–30 min</span><i />
+                      <span><FlaskConical size={14} /> Placement check</span><i />
+                      <span><ShieldCheck size={14} /> Not graded yet</span>
                     </div>
-                    <div className="mission-gate"><LockKeyhole size={14} /><span>Level gate: <strong>85%</strong> to unlock Level 3</span></div>
+                    <div className="mission-gate"><LockKeyhole size={14} /><span>Starting level is set from your placement results.</span></div>
                   </div>
                   <div className="exercise-editor">
-                    <div className="editor-topbar"><span><Code2 size={13} /> d7_mentor.module</span><span className="editor-draft">DRAFT</span></div>
+                    <div className="editor-topbar"><span><Code2 size={13} /> learning-notes.txt</span><span className="editor-draft">OPTIONAL NOTES</span></div>
                     <div className="editor-body">
                       <div className="line-numbers" aria-hidden="true">{attemptCode.split("\n").map((_, index) => <span key={index}>{index + 1}</span>)}</div>
-                      <textarea aria-label="Exercise code draft" spellCheck={false} value={attemptCode} onChange={(event) => { setAttemptCode(event.target.value); setAttemptSaved(false); }} />
+                      <textarea aria-label="Optional learning notes" placeholder="Write a question or note here. You do not need to write code to start." spellCheck={false} value={attemptCode} onChange={(event) => { setAttemptCode(event.target.value); setAttemptSaved(false); }} />
                     </div>
                     <div className="editor-footer">
                       <span><span className="offline-dot" /> Sandbox unavailable</span>
-                      <button className="primary-button" onClick={() => { setAttemptSaved(true); setNotice("Draft held in this page session. Sandbox is not connected; code was not executed or graded."); }}>
-                        <Play size={13} fill="currentColor" /> Keep draft
+                      <button className="primary-button" onClick={() => { setAttemptSaved(true); setNotice("Notes are only held in this page session; saving and grading are not connected yet."); }}>
+                        <Play size={13} fill="currentColor" /> Keep notes
                       </button>
                     </div>
-                    {attemptSaved && <div className="editor-feedback" role="status">Draft held for this session · Not run · Not graded</div>}
+                    {attemptSaved && <div className="editor-feedback" role="status">Notes held for this session · Not saved · Not graded</div>}
                   </div>
                 </div>
                 <div className="mission-footer">
-                  <div className="footer-progress"><span>SUBMISSION RUBRIC</span><strong>Function 50 · Quality 20 · Security 15 · Practices 10 · Efficiency 5</strong></div>
+                  <div className="footer-progress"><span>ASSESSMENT STATUS</span><strong>Placement questions and automatic grading are not connected yet.</strong></div>
                   <Link className="footer-link" href="/practice">More exercises <ArrowRight size={14} /></Link>
                 </div>
               </section>
 
               <section className="section-block">
                 <div className="section-heading">
-                  <div><h2>30-day route</h2><span className="map-subtitle">Level 2 · day 2 of 9 · gate requires 85%</span></div>
+                  <div><h2>30-day route</h2><span className="map-subtitle">Level 0 · placement check · starting point not assessed</span></div>
                   <Link className="subtle-link" href="/skills">Readiness details <ArrowRight size={14} /></Link>
                 </div>
                 <div className="curriculum-card">
                   <div className="curriculum-top">
                     <div className="curriculum-level-icon"><Code2 size={17} /></div>
-                    <div className="curriculum-title"><span>LEVEL 02 <b>·</b> DAYS 08—16</span><strong>Module developer</strong></div>
-                    <div className="level-progress"><span>2 of 9 days · 7 until level gate</span><div className="level-track"><i /></div></div>
+                    <div className="curriculum-title"><span>LEVEL 00 <b>·</b> DAY 01</span><strong>Foundations check</strong></div>
+                    <div className="level-progress"><span>Placement check not implemented yet</span><div className="level-track"><i /></div></div>
                     <button className="icon-button card-menu" aria-label="Curriculum options"><MoreHorizontal size={18} /></button>
                   </div>
                   <div className="curriculum-days">
@@ -387,28 +362,24 @@ export default function LearningDashboard() {
                         <span className="curriculum-node">{lesson.state === "done" ? <Check size={13} /> : lesson.state === "locked" ? <LockKeyhole size={12} /> : lesson.day}</span>
                         <span className="curriculum-day-label">DAY {lesson.day}</span>
                         <span className="curriculum-day-name">{lesson.title}</span>
-                        {index < 4 && <span className={`node-line ${index === 0 ? "line-done" : ""}`} />}
+                        {index < 4 && <span className="node-line" />}
                       </button>
                     ))}
-                    <button className="curriculum-more" onClick={() => setNotice("Complete today’s work to unlock the next milestone.")}><ArrowRight size={16} /><span>4 more<br />days</span></button>
+                    <button className="curriculum-more" onClick={() => setNotice("The full 30-day curriculum is a preview. Placement and lesson unlocks are not connected yet.")}><ArrowRight size={16} /><span>View all<br />30 days</span></button>
                   </div>
                 </div>
               </section>
 
               <div className="lower-grid">
                 <section className="panel-card skills-card">
-                  <div className="panel-heading"><div><span className="section-kicker">MASTERY</span><h3>Weakest skills first</h3></div><button className="text-icon" aria-label="Skill map options"><MoreHorizontal size={18} /></button></div>
+                  <div className="panel-heading"><div><span className="section-kicker">MASTERY</span><h3>Skill evidence</h3></div><button className="text-icon" aria-label="Skill profile options"><MoreHorizontal size={18} /></button></div>
                   <SkillBars />
-                  <button className="subtle-link skill-link" onClick={() => setNotice("Full skill breakdown will be available in your profile.")}>View all 12 skills <ArrowRight size={13} /></button>
+                  <Link className="subtle-link skill-link" href="/skills">View skill profile <ArrowRight size={13} /></Link>
                 </section>
                 <section className="panel-card achievement-card">
-                  <div className="panel-heading"><div><span className="section-kicker">REVIEW QUEUE</span><h3>Overdue: 3 concepts</h3></div><span className="review-count">ACTION REQUIRED</span></div>
-                  <div className="review-queue">
-                    <span>Hook access callbacks <strong>2d overdue</strong></span>
-                    <span>Drupal DB placeholders <strong>1d overdue</strong></span>
-                    <span>Form API validation <strong>Today</strong></span>
-                  </div>
-                  <Link className="subtle-link" href="/practice">Start oldest review <ArrowRight size={13} /></Link>
+                  <div className="panel-heading"><div><span className="section-kicker">REVIEW QUEUE</span><h3>No reviews scheduled</h3></div><span className="review-count">NOT TRACKED</span></div>
+                  <p className="summary-note">Reviews will be scheduled after assessed answers reveal what needs practice.</p>
+                  <Link className="subtle-link" href="/guide">How progress works <ArrowRight size={13} /></Link>
                 </section>
               </div>
             </div>
@@ -422,7 +393,7 @@ export default function LearningDashboard() {
                 <button className="text-icon" aria-label="Mentor options"><MoreHorizontal size={19} /></button>
               </div>
               <div className="mentor-rule"><ShieldCheck size={14} /><span>I won’t hand you the answer. I’ll help you earn it.</span></div>
-              <div className="chat-context"><span>LESSON {activeDay} · {detail.title.toUpperCase()}</span><span className="context-live"><i /> LIVE</span></div>
+              <div className="chat-context"><span>DAY {activeDay} · {detail.title.toUpperCase()}</span><span className="context-live"><i /> LIVE</span></div>
               <div className="chat-messages" aria-live="polite">
                 {mentor.messages.slice(-5).map((message, index) => (
                   <div className={`chat-message ${message.role}`} key={`${message.role}-${index}-${message.text.slice(0, 12)}`}>
@@ -431,9 +402,6 @@ export default function LearningDashboard() {
                   </div>
                 ))}
                 {mentor.isSending && <div className="mentor-typing" role="status">Mentor is reviewing your message…</div>}
-                {lessonStarted && (
-                  <div className="lesson-started"><Sparkles size={13} /> Lesson workspace started</div>
-                )}
               </div>
               {mentor.error && <div className="chat-error" role="alert">{mentor.error}</div>}
               <div className="quick-actions">
@@ -451,8 +419,8 @@ export default function LearningDashboard() {
               {hintCount > 0 && (
                 <div className="hint-meter" role="status">
                   <Lightbulb size={12} />
-                  <span>{hintCount} of 3 hints used</span>
-                  <strong>−{hintPenalty} pts</strong>
+                  <span>{hintCount} of 3 hints used in this session</span>
+                  <strong>Not scored</strong>
                 </div>
               )}
               <form className="chat-composer" onSubmit={handleSubmit}>
@@ -464,23 +432,22 @@ export default function LearningDashboard() {
                   disabled={mentor.isSending}
                 />
                 <div className="composer-bottom">
-                  <span><span className="composer-status" /> Drupal 7 context active</span>
+                  <span><span className="composer-status" /> Beginner-friendly · Day 1</span>
                   <button className="send-button" type="submit" aria-label="Send message" disabled={!draft.trim() || mentor.isSending}><Send size={15} /></button>
                 </div>
               </form>
-              <div className="mentor-footnote"><LockKeyhole size={12} /> Reference solution stays locked until a passing attempt.</div>
+              <div className="mentor-footnote"><LockKeyhole size={12} /> Chat does not record assessment results or unlock lessons.</div>
 
               <div className="today-progress">
                 <div className="today-progress-head"><strong>Today’s checklist</strong><button className="text-icon" aria-label="Checklist options"><MoreHorizontal size={16} /></button></div>
-                <div className="checklist-item complete"><span><Check size={11} /></span><div><strong>Review yesterday’s notes</strong><small>Done · 8 min</small></div><CheckCheck size={14} /></div>
-                <div className="checklist-item complete"><span><Check size={11} /></span><div><strong>Module anatomy lesson</strong><small>Done · 18 min</small></div><CheckCheck size={14} /></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Build a menu callback</strong><small>Exercise · 25 min</small></div><ArrowRight size={14} /></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Daily knowledge check</strong><small>Quiz · 5 questions</small></div><ArrowRight size={14} /></div>
-                <button className="checklist-link" onClick={() => setNotice("You have 2 of 5 daily objectives complete.")}>See all objectives <ArrowRight size={13} /></button>
+                <div className="checklist-item"><span className="check-empty" /><div><strong>Tell the mentor your experience</strong><small>First step · no code required</small></div><ArrowRight size={14} /></div>
+                <div className="checklist-item"><span className="check-empty" /><div><strong>Complete the placement check</strong><small>Not available yet</small></div><ArrowRight size={14} /></div>
+                <div className="checklist-item"><span className="check-empty" /><div><strong>Set up a Drupal 7 environment</strong><small>After the placement check</small></div><LockKeyhole size={14} /></div>
+                <button className="checklist-link" onClick={() => setNotice("Placement, saved progress, and the daily checklist are not connected yet.")}>Progress tracking status <ArrowRight size={13} /></button>
               </div>
             </aside>
           </div>
-          <footer className="page-footer"><span>Sample metrics · 4 of 6 passed · 3 reviews overdue · 1 attempt left</span><span>DRUPAL 7 TRACK <b>·</b> CURRICULUM V1.1</span></footer>
+          <footer className="page-footer"><span>Progress, placement, and grading are not connected; no learner results are being reported.</span><span>DRUPAL 7 TRACK <b>·</b> DAY 01</span></footer>
         </div>
       </section>
     </main>

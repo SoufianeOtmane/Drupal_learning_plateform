@@ -21,20 +21,18 @@ import {
   X,
 } from "lucide-react";
 
-export const learningDays = [
-  { day: 8, title: "Module anatomy", state: "done" },
-  { day: 9, title: "Menu system", state: "current" },
-  { day: 10, title: "Form API", state: "upcoming" },
-  { day: 11, title: "Database API", state: "locked" },
-  { day: 12, title: "Render API", state: "locked" },
-  { day: 13, title: "Entity & fields", state: "locked" },
-  { day: 14, title: "Blocks & cron", state: "locked" },
+export const learningDays: ReadonlyArray<{
+  day: number;
+  title: string;
+  state: "done" | "current" | "upcoming" | "locked";
+}> = [
+  { day: 1, title: "Foundations check", state: "current" },
 ] as const;
 
 const navigation = [
   { href: "/overview", label: "Overview", icon: Gauge },
   { href: "/learning", label: "Learning path", icon: BookOpen },
-  { href: "/practice", label: "Practice lab", icon: FlaskConical, badge: "2" },
+  { href: "/practice", label: "Practice lab", icon: FlaskConical },
   { href: "/mentor", label: "Mentor chat", icon: MessageSquareText },
   { href: "/skills", label: "Skill profile", icon: ShieldCheck },
   { href: "/guide", label: "Project guide", icon: Route },
@@ -50,7 +48,7 @@ type AppSidebarProps = {
 export default function AppSidebar({
   mobileOpen,
   onClose,
-  activeDay = 9,
+  activeDay = 1,
   onDaySelect,
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -89,7 +87,7 @@ export default function AppSidebar({
 
         <nav className="primary-nav" aria-label="Main navigation">
           <span className="nav-label">WORKSPACE</span>
-          {navigation.map(({ href, label, icon: Icon, badge }) => (
+          {navigation.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
@@ -100,7 +98,6 @@ export default function AppSidebar({
               <Icon size={17} />
               {label}
               {pathname === href && <span className="nav-dot" />}
-              {badge && <span className="nav-count">{badge}</span>}
             </Link>
           ))}
         </nav>
@@ -112,8 +109,8 @@ export default function AppSidebar({
           </button>
         </div>
         <div className="path-level">
-          <span className="level-number">02</span>
-          <div><strong>Module developer</strong><span>Day 8 — 16</span></div>
+          <span className="level-number">00</span>
+          <div><strong>Foundations check</strong><span>Day 1 · placement</span></div>
           <ChevronDown size={14} />
         </div>
         <div className="day-list" aria-label="Learning path days">
@@ -148,12 +145,12 @@ export default function AppSidebar({
         <div className="sidebar-bottom">
           <div className="streak-card">
             <div className="streak-icon"><Flame size={18} fill="currentColor" /></div>
-            <div><strong>6 day streak</strong><span>Best: 7 days · 1 day to match</span></div>
+            <div><strong>Streak not tracked</strong><span>Complete a lesson to begin</span></div>
             <ArrowUpRight size={15} />
           </div>
           <button className="profile-button">
             <div className="avatar">S</div>
-            <div className="profile-name"><strong>Soufiane</strong><span>Apprentice · Level 2</span></div>
+            <div className="profile-name"><strong>New learner</strong><span>Level not assessed</span></div>
             <MoreHorizontal size={17} />
           </button>
         </div>
