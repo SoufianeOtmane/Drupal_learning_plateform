@@ -1,22 +1,18 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import AppSidebar, { learningDays } from "@/components/app-sidebar";
 import {
   AlarmClock,
-  ArrowDown,
   ArrowRight,
-  ArrowUpRight,
-  BookOpen,
   Bot,
   Check,
   CheckCheck,
   CircleHelp,
   Code2,
-  Command,
   Flame,
   FlaskConical,
-  Gauge,
   Lightbulb,
   LockKeyhole,
   Menu,
@@ -24,10 +20,10 @@ import {
   MoreHorizontal,
   Play,
   Search,
+  Command,
   Send,
   ShieldCheck,
   Sparkles,
-  TerminalSquare,
   X,
   Zap,
 } from "lucide-react";
@@ -151,30 +147,11 @@ const initialMessages: ChatMessage[] = [
   },
 ];
 
-function ProgressRing({ value }: { value: number }) {
-  const circumference = 2 * Math.PI * 34;
-  return (
-    <div className="progress-ring" aria-label={`${value}% program progress`}>
-      <svg viewBox="0 0 80 80" role="img" aria-hidden="true">
-        <circle className="ring-track" cx="40" cy="40" r="34" />
-        <circle
-          className="ring-value"
-          cx="40"
-          cy="40"
-          r="34"
-          strokeDasharray={`${(value / 100) * circumference} ${circumference}`}
-        />
-      </svg>
-      <span>{value}%</span>
-    </div>
-  );
-}
-
 function SkillBars() {
   const skills = [
-    { name: "Site building", value: 76, color: "mint" },
     { name: "Module dev", value: 34, color: "violet" },
     { name: "Theming", value: 18, color: "blue" },
+    { name: "Site building", value: 76, color: "mint" },
     { name: "Security", value: 52, color: "amber" },
   ];
 
@@ -203,6 +180,10 @@ export default function LearningDashboard() {
   const [lessonStarted, setLessonStarted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [attemptCode, setAttemptCode] = useState(
+    "function d7_mentor_menu() {\n  return array(\n    'admin/reports/mentor' => array(\n      'title' => 'Mentor report',\n      'page callback' => 'd7_mentor_report',\n      // Add the access callback and permission.\n    ),\n  );\n}",
+  );
+  const [attemptSaved, setAttemptSaved] = useState(false);
   const [notice, setNotice] = useState("");
   const detail = lessonDetails[activeDay];
   const hintPenalty = hintCosts.slice(0, hintCount).reduce((total, cost) => total + cost, 0);
@@ -226,11 +207,15 @@ export default function LearningDashboard() {
     if (lower.includes("skip")) {
       response = "No. Skipping is locked until you demonstrate the objective. Start with the access callback.";
     } else if (lower.includes("hint")) {
-      const nextHint = Math.min(hintCount + 1, 3);
-      setHintCount(nextHint);
-      const nextCost = hintCosts[nextHint - 1];
-      const totalPenalty = hintCosts.slice(0, nextHint).reduce((total, cost) => total + cost, 0);
-      response = `${detail.hints[nextHint - 1]} Hint ${nextHint} costs ${nextCost} points (${totalPenalty} total penalty).`;
+      if (hintCount >= 3) {
+        response = "No hints remain. Make an attempt before requesting further help.";
+      } else {
+        const nextHint = hintCount + 1;
+        setHintCount(nextHint);
+        const nextCost = hintCosts[nextHint - 1];
+        const totalPenalty = hintCosts.slice(0, nextHint).reduce((total, cost) => total + cost, 0);
+        response = `${detail.hints[nextHint - 1]} Hint ${nextHint} costs ${nextCost} points (${totalPenalty} total penalty).`;
+      }
     } else if (lower.includes("example")) {
       response = "I won’t provide a complete solution before an attempt. Write the menu item skeleton first; then I can review it.";
     } else if (lower.includes("test me")) {
@@ -253,10 +238,6 @@ export default function LearningDashboard() {
   }
 
   function handleQuickAction(action: string) {
-    if (action === "Skip") {
-      sendMessage("Can I skip this lesson?");
-      return;
-    }
     if (action === "Hint" && hintCount >= 3) {
       setNotice("All 3 hints used. Make an attempt before requesting more help.");
       return;
@@ -309,9 +290,9 @@ export default function LearningDashboard() {
         <div className="dashboard-content">
           <div className="welcome-row">
             <div>
-              <div className="eyebrow"><span className="live-dot" /> TUESDAY, OCTOBER 7, 2026 <span className="eyebrow-separator">/</span> WEEK 02</div>
-              <h1>Good afternoon, Soufiane <span className="wave">✳</span></h1>
-              <p className="welcome-subtitle">Small steps. Production-ready Drupal. Let’s keep the momentum.</p>
+              <div className="eyebrow"><span className="live-dot" /> {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date())} <span className="eyebrow-separator">/</span> DAY 09 OF 30</div>
+              <h1>Build it. Prove it. Move on.</h1>
+              <p className="welcome-subtitle">Today’s requirement: a secure Drupal 7 menu callback. No pass, no progression.</p>
             </div>
             <button
               className="focus-button"
@@ -329,26 +310,26 @@ export default function LearningDashboard() {
             </div>
           )}
 
-          <section className="summary-grid" aria-label="Learning progress summary">
-            <article className="summary-card progress-summary">
-              <div className="summary-copy">
-                <span className="card-overline">PROGRAM PROGRESS</span>
-                <strong className="summary-number">Day 09 <span>of 30</span></strong>
-                <span className="summary-note"><span className="positive">+2 days</span> ahead of your pace</span>
-              </div>
-              <ProgressRing value={30} />
+          <section className="summary-grid strict-scorecard" aria-label="Strict progress scorecard">
+            <article className="summary-card">
+              <span className="card-overline">EXERCISE PASS RATE <span className="demo-data-tag">SAMPLE DATA</span></span>
+              <strong className="summary-number">67<span>%</span></strong>
+              <span className="summary-note">4 passed / 6 graded</span>
             </article>
             <article className="summary-card">
-              <div className="summary-icon xp-icon"><Zap size={17} fill="currentColor" /></div>
-              <span className="card-overline">TOTAL EXPERIENCE</span>
-              <strong className="summary-number">2,480 <span>XP</span></strong>
-              <span className="summary-note"><span className="positive">↑ 320</span> earned this week</span>
+              <span className="card-overline">WEAKEST SKILL</span>
+              <strong className="summary-number">Module dev</strong>
+              <span className="summary-note">34% mastery · priority review</span>
             </article>
-            <article className="summary-card readiness-card">
-              <div className="readiness-top"><span className="card-overline">JOB READINESS</span><ArrowUpRight size={15} /></div>
-              <strong className="summary-number">32<span>%</span></strong>
-              <div className="readiness-track"><span /></div>
-              <span className="summary-note">Building a strong foundation</span>
+            <article className="summary-card">
+              <span className="card-overline">OVERDUE REVIEWS</span>
+              <strong className="summary-number">3 <span>items</span></strong>
+              <span className="summary-note">Oldest review: 2 days overdue</span>
+            </article>
+            <article className="summary-card gate-summary">
+              <span className="card-overline">LEVEL 2 GATE</span>
+              <strong className="summary-number">85<span>% required</span></strong>
+              <span className="summary-note">Locked · 7 days remaining</span>
             </article>
           </section>
 
@@ -356,49 +337,51 @@ export default function LearningDashboard() {
             <div className="lesson-column">
               <section className="mission-card">
                 <div className="mission-topline">
-                  <div className="mission-tag"><span /> TODAY’S MISSION <span className="tag-divider">·</span> DAY {activeDay}</div>
+                  <div className="mission-tag"><span /> DAY {activeDay} <span className="tag-divider">/</span> MODULE DEVELOPMENT</div>
                   <button className="text-icon" aria-label="More mission options"><MoreHorizontal size={19} /></button>
                 </div>
                 <div className="mission-main">
                   <div className="mission-copy">
-                    <div className="mission-kicker">LEVEL 02 <span>—</span> MODULE DEVELOPER</div>
-                    <h2>{detail.title}<br /><span>{detail.topic}</span></h2>
-                    <p>Understand how Drupal 7 discovers your code, then put it to work in a real callback.</p>
+                    <h2>Secure menu callback</h2>
+                    <p>Register an admin report path. Restrict it to editors using Drupal 7’s permission API.</p>
                     <div className="mission-meta">
-                      <span><AlarmClock size={14} /> {detail.minutes} min</span><i />
-                      <span><FlaskConical size={14} /> 3 exercises</span><i />
-                      <span><Zap size={14} /> 120 XP</span>
+                      <span><AlarmClock size={14} /> 25 min</span><i />
+                      <span><FlaskConical size={14} /> 1 attempt remaining</span><i />
+                      <span><ShieldCheck size={14} /> Pass mark 80</span>
                     </div>
-                    <button className="primary-button" onClick={() => { setLessonStarted(true); setNotice(`Lesson ${activeDay} started. Your progress is saved locally.`); }}>
-                      {lessonStarted ? <Check size={16} /> : <Play size={15} fill="currentColor" />}
-                      {lessonStarted ? "Lesson in progress" : "Continue learning"}
-                      <ArrowRight size={16} />
-                    </button>
+                    <div className="mission-gate"><LockKeyhole size={14} /><span>Level gate: <strong>85%</strong> to unlock Level 3</span></div>
                   </div>
-                  <div className="mission-art" aria-hidden="true">
-                    <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-                    <div className="art-glow" />
-                    <div className="code-tile"><span className="tile-line tile-short" /><span className="tile-line" /><span className="tile-line tile-mid" /><span className="tile-line tile-short" /></div>
-                    <div className="art-badge"><Code2 size={19} /></div>
-                    <div className="art-spark spark-one">✦</div><div className="art-spark spark-two">✧</div>
+                  <div className="exercise-editor">
+                    <div className="editor-topbar"><span><Code2 size={13} /> d7_mentor.module</span><span className="editor-draft">DRAFT</span></div>
+                    <div className="editor-body">
+                      <div className="line-numbers" aria-hidden="true">{attemptCode.split("\n").map((_, index) => <span key={index}>{index + 1}</span>)}</div>
+                      <textarea aria-label="Exercise code draft" spellCheck={false} value={attemptCode} onChange={(event) => { setAttemptCode(event.target.value); setAttemptSaved(false); }} />
+                    </div>
+                    <div className="editor-footer">
+                      <span><span className="offline-dot" /> Sandbox unavailable</span>
+                      <button className="primary-button" onClick={() => { setAttemptSaved(true); setNotice("Draft held in this page session. Sandbox is not connected; code was not executed or graded."); }}>
+                        <Play size={13} fill="currentColor" /> Keep draft
+                      </button>
+                    </div>
+                    {attemptSaved && <div className="editor-feedback" role="status">Draft held for this session · Not run · Not graded</div>}
                   </div>
                 </div>
                 <div className="mission-footer">
-                  <div className="footer-progress"><span>YOUR DAY 09 PROGRESS</span><div className="mini-track"><span style={{ width: "42%" }} /></div><strong>2 <small>/ 5 complete</small></strong></div>
-                  <button className="footer-link" onClick={() => setNotice("Your full daily plan is ready to explore.")}>View daily plan <ArrowRight size={14} /></button>
+                  <div className="footer-progress"><span>SUBMISSION RUBRIC</span><strong>Function 50 · Quality 20 · Security 15 · Practices 10 · Efficiency 5</strong></div>
+                  <Link className="footer-link" href="/practice">More exercises <ArrowRight size={14} /></Link>
                 </div>
               </section>
 
               <section className="section-block">
                 <div className="section-heading">
-                  <div><span className="section-kicker">YOUR CURRICULUM</span><h2>The path to mastery</h2></div>
-                  <button className="subtle-link" onClick={() => setNotice("Your 30-day curriculum is shown in the sidebar.")}>Full curriculum <ArrowRight size={14} /></button>
+                  <div><h2>30-day route</h2><span className="map-subtitle">Level 2 · day 2 of 9 · gate requires 85%</span></div>
+                  <Link className="subtle-link" href="/skills">Readiness details <ArrowRight size={14} /></Link>
                 </div>
                 <div className="curriculum-card">
                   <div className="curriculum-top">
                     <div className="curriculum-level-icon"><Code2 size={17} /></div>
                     <div className="curriculum-title"><span>LEVEL 02 <b>·</b> DAYS 08—16</span><strong>Module developer</strong></div>
-                    <div className="level-progress"><span>2 of 9 days</span><div className="level-track"><i /></div></div>
+                    <div className="level-progress"><span>2 of 9 days · 7 until level gate</span><div className="level-track"><i /></div></div>
                     <button className="icon-button card-menu" aria-label="Curriculum options"><MoreHorizontal size={18} /></button>
                   </div>
                   <div className="curriculum-days">
@@ -423,17 +406,18 @@ export default function LearningDashboard() {
 
               <div className="lower-grid">
                 <section className="panel-card skills-card">
-                  <div className="panel-heading"><div><span className="section-kicker">YOUR SKILL MAP</span><h3>Growing every day</h3></div><button className="text-icon" aria-label="Skill map options"><MoreHorizontal size={18} /></button></div>
+                  <div className="panel-heading"><div><span className="section-kicker">MASTERY</span><h3>Weakest skills first</h3></div><button className="text-icon" aria-label="Skill map options"><MoreHorizontal size={18} /></button></div>
                   <SkillBars />
                   <button className="subtle-link skill-link" onClick={() => setNotice("Full skill breakdown will be available in your profile.")}>View all 12 skills <ArrowRight size={13} /></button>
                 </section>
                 <section className="panel-card achievement-card">
-                  <div className="panel-heading"><div><span className="section-kicker">RECENT UNLOCK</span><h3>A little recognition</h3></div><div className="badge-new">NEW</div></div>
-                  <div className="achievement-content">
-                    <div className="achievement-medal"><div><ShieldCheck size={23} /></div><span>✦</span></div>
-                    <div><strong>Security-minded</strong><p>Spotted 5 security issues<br />in your code reviews.</p><span className="achievement-date">UNLOCKED YESTERDAY</span></div>
+                  <div className="panel-heading"><div><span className="section-kicker">REVIEW QUEUE</span><h3>Overdue: 3 concepts</h3></div><span className="review-count">ACTION REQUIRED</span></div>
+                  <div className="review-queue">
+                    <span>Hook access callbacks <strong>2d overdue</strong></span>
+                    <span>Drupal DB placeholders <strong>1d overdue</strong></span>
+                    <span>Form API validation <strong>Today</strong></span>
                   </div>
-                  <button className="subtle-link" onClick={() => setNotice("Your achievements are updated as you master new skills.")}>All achievements <ArrowRight size={13} /></button>
+                  <Link className="subtle-link" href="/practice">Start oldest review <ArrowRight size={13} /></Link>
                 </section>
               </div>
             </div>
@@ -465,9 +449,8 @@ export default function LearningDashboard() {
                   { label: "Explain again", icon: MessageSquareText },
                   { label: "Show example", icon: Code2 },
                   { label: "Test me", icon: FlaskConical },
-                  { label: "Skip", icon: ArrowDown },
                 ].map(({ label, icon: Icon }) => (
-                  <button key={label} className={`quick-action ${label === "Skip" ? "skip-action" : ""}`} onClick={() => handleQuickAction(label)}>
+                  <button key={label} className="quick-action" onClick={() => handleQuickAction(label)}>
                     <Icon size={13} /> {label}
                   </button>
                 ))}
@@ -491,7 +474,7 @@ export default function LearningDashboard() {
                   <button className="send-button" type="submit" aria-label="Send message" disabled={!draft.trim()}><Send size={15} /></button>
                 </div>
               </form>
-              <div className="mentor-footnote"><LockKeyhole size={12} /> Solutions unlock after an honest attempt.</div>
+              <div className="mentor-footnote"><LockKeyhole size={12} /> Reference solution stays locked until a passing attempt.</div>
 
               <div className="today-progress">
                 <div className="today-progress-head"><strong>Today’s checklist</strong><button className="text-icon" aria-label="Checklist options"><MoreHorizontal size={16} /></button></div>
@@ -503,7 +486,7 @@ export default function LearningDashboard() {
               </div>
             </aside>
           </div>
-          <footer className="page-footer"><span>Built for the real world, one hook at a time.</span><span><TerminalSquare size={13} /> DRUPAL 7 TRACK <b>·</b> CURRICULUM V1.1</span></footer>
+          <footer className="page-footer"><span>Sample metrics · 4 of 6 passed · 3 reviews overdue · 1 attempt left</span><span>DRUPAL 7 TRACK <b>·</b> CURRICULUM V1.1</span></footer>
         </div>
       </section>
     </main>

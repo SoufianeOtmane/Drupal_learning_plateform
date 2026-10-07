@@ -36,7 +36,7 @@ const pageInfo: Record<WorkspaceView, { eyebrow: string; title: string; descript
   overview: {
     eyebrow: "YOUR LEARNING AT A GLANCE",
     title: "Overview",
-    description: "See where you are, what’s next, and how your Drupal skills are growing.",
+    description: "See what passed, what is overdue, and the next requirement to unlock.",
   },
   practice: {
     eyebrow: "HANDS-ON TRAINING",
@@ -51,7 +51,7 @@ const pageInfo: Record<WorkspaceView, { eyebrow: string; title: string; descript
   skills: {
     eyebrow: "YOUR LEARNER PROFILE",
     title: "Skill profile",
-    description: "Track the capabilities you’re building across the Drupal developer path.",
+    description: "See demonstrated mastery, identify gaps, and prioritize the next review.",
   },
 };
 
@@ -92,13 +92,13 @@ function OverviewContent() {
           <div className="workspace-stat-icon orange-stat"><Flame size={17} /></div>
           <span className="card-overline">CURRENT STREAK</span>
           <strong>6 <small>days</small></strong>
-          <span className="workspace-stat-note">One more day to beat your best</span>
+          <span className="workspace-stat-note">Best: 7 days · 1 day to match</span>
         </article>
         <article className="workspace-stat">
           <div className="workspace-stat-icon violet-stat"><Target size={17} /></div>
           <span className="card-overline">JOB READINESS</span>
           <strong>32<small>%</small></strong>
-          <span className="workspace-stat-note">Building a strong foundation</span>
+          <span className="workspace-stat-note">32% demonstrated mastery</span>
         </article>
       </section>
       <section className="workspace-grid">
@@ -200,7 +200,6 @@ function MentorContent() {
         <button onClick={() => sendMessage("Give me a hint")}><Lightbulb size={13} /> Hint</button>
         <button onClick={() => sendMessage("Test me")}><FlaskConical size={13} /> Test me</button>
         <button onClick={() => sendMessage("Can you show me an example?")}><Code2 size={13} /> Show example</button>
-        <button onClick={() => sendMessage("Can I skip this lesson?")}><ArrowRight size={13} /> Skip</button>
       </div>
       <form className="full-chat-composer" onSubmit={submit}>
         <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask your mentor anything..." aria-label="Message your mentor" />
@@ -216,7 +215,7 @@ function SkillsContent() {
     <>
       <section className="skill-profile-banner">
         <div className="skill-profile-icon"><Gauge size={20} /></div>
-        <div><span className="section-kicker">OVERALL JOB READINESS</span><strong>32<span>%</span></strong><p>You’re building the foundations. Keep practising module development and theming.</p></div>
+        <div><span className="section-kicker">OVERALL JOB READINESS</span><strong>32<span>%</span></strong><p>Priority gaps: module development (34%) and theming (18%).</p></div>
         <div className="skill-profile-track"><span /></div>
       </section>
       <section className="workspace-panel detailed-skills">
