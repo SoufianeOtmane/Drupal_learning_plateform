@@ -1,6 +1,6 @@
 # Drupal Learning Platform
 
-A learning workspace for the Drupal 7 AI Mentor described in the project brief. It includes separate Overview, Learning path, Practice lab, Mentor chat, Skill profile, and Project guide pages. The chat uses a server-side Gemini streaming route; learner metrics remain sample data, and persistent storage, objective grading, and Drupal sandbox execution are not connected yet.
+A learning workspace for the Drupal 7 AI Mentor described in the project brief. It includes separate Overview, Learning path, Practice lab, Mentor chat, Skill profile, and Project guide pages. The chat uses a server-side Gemini streaming route. The UI starts honestly at Day 1 with no assessed metrics; learner persistence, the placement test, objective grading, and Drupal sandbox execution are not connected yet.
 
 ## Pages
 
@@ -11,7 +11,7 @@ A learning workspace for the Drupal 7 AI Mentor described in the project brief. 
 - `/skills` — competency breakdown and readiness
 - `/guide` — learning workflow and backend implementation plan
 
-The Learning path puts the current code attempt, remaining attempts, pass mark, review debt, and level gate beside the mentor. The editor is a local draft only: no sandbox execution or score is claimed. The provided SVG wordmark and app icon are used in the sidebar and browser tab.
+The Learning path is currently a Day 1 foundations-check preview. Optional notes are held only in page memory. There is no live placement test, saved progress, sandbox execution, grade, or level unlock yet. The provided SVG wordmark and app icon are used in the sidebar and browser tab.
 
 ## Gemini API setup
 
@@ -26,8 +26,8 @@ The API route validates message count and size, applies the strict Drupal 7 ment
 - **Language/runtime:** TypeScript on Next.js Route Handlers for the app API, matching the existing frontend.
 - **Database:** PostgreSQL for learner profiles, curriculum, attempts, mastery, chat history, review scheduling, and audit records.
 - **Grading/sandbox:** isolated Docker worker images with Drupal 7, PHP 7.4, and MariaDB; no outbound network, strict limits, and automated tests/security checks.
-- **Next modules:** persistence and authentication, curriculum/progress APIs, deterministic grading, attempt limits and spaced repetition, sandbox lifecycle, then admin/content tools and observability.
-- Keep sandbox execution isolated from the web process. The LLM explains results; automated checks decide pass/fail.
+- **Next modules:** persistence and authentication, placement test, curriculum/progress APIs, deterministic grading, progression service, attempt limits and spaced repetition, sandbox lifecycle, then admin/content tools and observability.
+- Keep sandbox execution isolated from the web process. The LLM teaches and explains; saved automated results and progression rules decide pass/fail and unlock levels.
 
 ## Run locally
 

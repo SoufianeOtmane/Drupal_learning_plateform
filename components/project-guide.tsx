@@ -22,23 +22,23 @@ const learningSteps = [
   {
     number: "01",
     title: "Open Learning path",
-    text: "Start at /learning. Read the mission and the pass requirements before touching the code.",
+    text: "Start on Day 1 at /learning. Tell the mentor what you have used before; the placement test is planned but not implemented yet.",
     href: "/learning",
     link: "Go to the current exercise",
     icon: BookOpen,
   },
   {
     number: "02",
-    title: "Make your own attempt",
-    text: "Write or edit the Drupal 7 code draft. The mentor can give progressive hints, but using hints reduces the exercise score.",
+    title: "Learn in small steps",
+    text: "If you are new, the mentor should explain one idea in plain language, show a tiny annotated example, check your understanding, then guide one small step. Code is not the starting requirement.",
     href: "/learning",
-    link: "Continue the attempt",
+    link: "Open Day 1 foundations check",
     icon: Code2,
   },
   {
     number: "03",
     title: "Ask the mentor when stuck",
-    text: "Use the mentor panel or open the full chat. Describe your reasoning or paste your attempt; the mentor should guide, not hand out a solution.",
+    text: "Use the mentor panel or open the full chat. It now asks about your experience and is instructed to scaffold beginner questions. Chat history and skill level are not saved between sessions yet.",
     href: "/mentor",
     link: "Open Mentor chat",
     icon: MessageSquareText,
@@ -46,7 +46,7 @@ const learningSteps = [
   {
     number: "04",
     title: "Run, submit, and review",
-    text: "The planned loop is to run your code in an isolated Drupal 7 sandbox, receive an objective rubric score, fix issues, and retry within the attempt limit.",
+    text: "This is the planned loop, not a live feature yet: run work in an isolated Drupal 7 sandbox, receive a deterministic rubric score, fix issues, and retry within the attempt limit.",
     href: "/practice",
     link: "Browse Practice lab",
     icon: FlaskConical,
@@ -54,7 +54,7 @@ const learningSteps = [
   {
     number: "05",
     title: "Clear the gate before advancing",
-    text: "Review overdue concepts, build mastery across separate exercises, and reach the 85% level-gate score before the next level unlocks.",
+    text: "The planned rule is: a deterministic grader records the result; the progression service unlocks a level only after its gate reaches 85% and prerequisites are satisfied. Gemini can explain results but cannot pass or unlock anything.",
     href: "/skills",
     link: "Check your Skill profile",
     icon: ShieldCheck,
@@ -66,6 +66,7 @@ const backendTasks = [
   "Learner data: PostgreSQL tables for profile, skills, lessons, progress, attempts, chat history, and review cards.",
   "Curriculum: versioned lesson and exercise definitions, prerequisites, strict rubrics, and level-gate rules.",
   "Grader: run functional checks, coding standards, and security checks; calculate scores deterministically.",
+  "Progression service: persist grader results, enforce prerequisites and level gates, and never accept an AI chat claim as a pass.",
   "Sandbox worker: isolated Docker images for Drupal 7, PHP, and MariaDB; no network, strict resource limits, timed runs.",
   "Planner and reviews: daily plan, mastery updates, spaced repetition, attempt caps, and recovery scheduling.",
   "Security and operations: secret management, rate limits, backups, structured logs, and sandbox audit trails.",
@@ -109,6 +110,24 @@ export default function ProjectGuide() {
                 </div>
               </article>
             ))}
+          </section>
+
+          <section className="guide-backend">
+            <div className="guide-backend-heading">
+              <div className="guide-backend-icon"><ShieldCheck size={19} /></div>
+              <div>
+                <span className="section-kicker">BEGINNER-FRIENDLY TEACHING PLAN</span>
+                <h2>Explain first. Then practise.</h2>
+                <p>The mentor should not tell a beginner to build something from concepts they have not learned.</p>
+              </div>
+            </div>
+            <ol className="backend-task-list">
+              <li><Check size={14} /><span>Ask what the learner has used before; do not assume PHP or Drupal knowledge.</span></li>
+              <li><Check size={14} /><span>Explain one concept in plain language with a tiny, annotated example.</span></li>
+              <li><Check size={14} /><span>Ask one quick understanding check, then give a partially completed task or a single next step.</span></li>
+              <li><Check size={14} /><span>Increase independence only after demonstrated understanding; if they struggle, reteach differently and practise a smaller step.</span></li>
+            </ol>
+            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Passing and unlocking must come from stored results checked against deterministic tests and gate rules. Placement, saved progress, grading, and unlocks are not implemented yet.</span></div>
           </section>
 
           <section className="guide-backend">
