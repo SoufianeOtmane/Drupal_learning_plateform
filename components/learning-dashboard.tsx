@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import AppSidebar, { learningDays } from "@/components/app-sidebar";
+import ChatMessageContent from "@/components/chat-message-content";
 import { useMentorChat } from "@/hooks/use-mentor-chat";
 import {
   AlarmClock,
@@ -398,7 +399,9 @@ export default function LearningDashboard() {
                 {mentor.messages.slice(-5).map((message, index) => (
                   <div className={`chat-message ${message.role}`} key={`${message.role}-${index}-${message.text.slice(0, 12)}`}>
                     {message.role === "mentor" && <div className="message-avatar"><Bot size={14} /></div>}
-                    <div className="message-bubble"><span>{message.text}</span></div>
+                    <div className="message-bubble">
+                      {message.role === "mentor" ? <ChatMessageContent text={message.text} /> : <span>{message.text}</span>}
+                    </div>
                   </div>
                 ))}
                 {mentor.isSending && <div className="mentor-typing" role="status">Mentor is reviewing your message…</div>}

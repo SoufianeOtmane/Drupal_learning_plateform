@@ -3497,6 +3497,88 @@ p {
   line-height: 1.6;
 }
 
+.chat-message.mentor .message-bubble {
+  max-width: min(88%, 660px);
+  padding: 13px 15px;
+  border-color: rgba(141, 215, 169, 0.13);
+  background: linear-gradient(145deg, #1b2327, #181d24);
+  color: #e0e7e4;
+}
+
+.mentor-message-content {
+  display: grid;
+  gap: 10px;
+}
+
+.mentor-message-paragraph {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.mentor-message-paragraph strong {
+  color: #f1f5f2;
+  font-weight: 650;
+}
+
+.mentor-inline-code {
+  padding: 2px 5px;
+  border: 1px solid rgba(141, 215, 169, 0.16);
+  border-radius: 4px;
+  background: rgba(8, 13, 16, 0.68);
+  color: #a8e7bd;
+  font-family: "DM Mono", monospace;
+  font-size: 0.91em;
+  white-space: break-spaces;
+}
+
+.mentor-message-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 19px;
+  line-height: 1.65;
+}
+
+.mentor-message-list li::marker {
+  color: #8dd7a9;
+}
+
+.mentor-code-block {
+  overflow: hidden;
+  border: 1px solid rgba(141, 215, 169, 0.18);
+  border-radius: 7px;
+  background: #101619;
+}
+
+.mentor-code-language {
+  display: block;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(223, 232, 245, 0.08);
+  background: rgba(141, 215, 169, 0.055);
+  color: #a9d8ba;
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mentor-code-block pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 11px 12px;
+  overflow-x: auto;
+  color: #d8e4dc;
+  font-family: "DM Mono", monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.mentor-code-block pre code {
+  font: inherit;
+  white-space: pre;
+}
+
 .quick-action {
   padding: 6px 8px;
   color: #c3ccd7;

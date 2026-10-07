@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import ChatMessageContent from "@/components/chat-message-content";
 import { MentorMessage, useMentorChat } from "@/hooks/use-mentor-chat";
 import {
   ArrowRight,
@@ -177,7 +178,9 @@ function MentorContent() {
         {mentor.messages.map((message, index) => (
           <div className={`chat-message ${message.role}`} key={`${index}-${message.role}`}>
             {message.role === "mentor" && <div className="message-avatar"><Bot size={14} /></div>}
-            <div className="message-bubble"><span>{message.text}</span></div>
+            <div className="message-bubble">
+              {message.role === "mentor" ? <ChatMessageContent text={message.text} /> : <span>{message.text}</span>}
+            </div>
           </div>
         ))}
         {mentor.isSending && <div className="mentor-typing" role="status">Mentor is reviewing your message…</div>}
