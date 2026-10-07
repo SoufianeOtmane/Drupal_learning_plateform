@@ -10,6 +10,8 @@ A frontend-first learning workspace for the Drupal 7 AI Mentor described in the 
 - `/mentor` — standalone mentor chat demo
 - `/skills` — competency breakdown and readiness
 
+The Learning path puts the current code attempt, remaining attempts, pass mark, review debt, and level gate beside the mentor. The editor is a local draft only: no sandbox execution or score is claimed. The provided SVG wordmark and app icon are used in the sidebar and browser tab.
+
 ## Run locally
 
 ```bash
