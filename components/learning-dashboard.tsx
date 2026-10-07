@@ -1,10 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AppSidebar, { learningDays } from "@/components/app-sidebar";
 import ChatMessageContent from "@/components/chat-message-content";
+import PlacementAssessment from "@/components/placement-assessment";
+import { useLearnerState } from "@/hooks/use-learner-state";
 import { useMentorChat } from "@/hooks/use-mentor-chat";
+import type { PlacementSkill, PlacementSkillResult } from "@/lib/learner-types";
 import {
   AlarmClock,
   ArrowRight,
@@ -155,23 +158,42 @@ const initialMessages: ChatMessage[] = [
   },
 ];
 
-function SkillBars() {
+function SkillBars({
+  scores,
+}: {
+  scores: Partial<Record<PlacementSkill, PlacementSkillResult>> | undefined;
+}) {
+  const skills = scores;
+  if (skills) {
+    return (
+      <div className="placement-mini-skills">
+        {Object.entries(skills).map(([skill, result]) => (
+          <span key={skill}>{skill.replace("_", " ")} <strong>{result?.score}%</strong></span>
+        ))}
+      </div>
+    );
+  }
   return (
-    <p className="summary-note">No placement answers or graded attempts yet. Skill levels will appear after real assessments.</p>
+    <p className="summary-note">Complete the starting-point assessment to see evidence-based skill scores.</p>
   );
 }
 
 export default function LearningDashboard() {
+  const learner = useLearnerState();
   const [activeDay, setActiveDay] = useState(1);
   const [draft, setDraft] = useState("");
   const [selectedRequestAnswer, setSelectedRequestAnswer] = useState("");
   const [requestAnswerResult, setRequestAnswerResult] = useState<"correct" | "retry" | null>(null);
-  const [lessonFinished, setLessonFinished] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [notice, setNotice] = useState("");
   const mentor = useMentorChat(initialMessages);
   const detail = lessonDetails[activeDay];
+  const lessonFinished = learner.state?.lesson.status === "completed";
+  const placementComplete = Boolean(learner.state?.placement);
+  const handlePlacementComplete = useCallback(() => {
+    void learner.refresh();
+  }, [learner.refresh]);
   const exerciseContext = `The learner is in the Day 1 web-request lesson's ${lessonFinished ? "finished" : "open Q&A"} phase. Answer their question directly in plain language. Do not turn ordinary questions into quizzes or ask follow-up questions by default. The separate practice check is controlled by the app, is ungraded, and does not change progress. ${lessonFinished ? "The learner has finished the lesson; answer only what they ask and do not restart or extend the lesson." : "The learner can choose when to try the separate practice check or finish."}`;
 
   useEffect(() => {
@@ -182,6 +204,30 @@ export default function LearningDashboard() {
     window.addEventListener("keydown", leaveFocusMode);
     return () => window.removeEventListener("keydown", leaveFocusMode);
   }, [focusMode]);
+
+  useEffect(() => {
+    const lesson = learner.state?.lesson;
+    if (!lesson) return;
+    setSelectedRequestAnswer(lesson.practiceAnswer ?? "");
+    setRequestAnswerResult(
+      lesson.practiceCorrect === null
+        ? null
+        : lesson.practiceCorrect
+          ? "correct"
+          : "retry",
+    );
+  }, [learner.state?.lesson]);
+
+  useEffect(() => {
+    if (!placementComplete || learner.state?.lesson.status !== "not_started") return;
+    void saveLessonAction({ action: "start" }).then((error) => {
+      if (error) {
+        setNotice(error);
+        return;
+      }
+      void learner.refresh();
+    });
+  }, [learner.state?.lesson.status, learner.refresh, placementComplete]);
 
   function sendMessage(text: string) {
     const cleanText = text.trim();
@@ -195,12 +241,17 @@ export default function LearningDashboard() {
     sendMessage(draft);
   }
 
-  function checkWebRequestAnswer() {
+  async function checkWebRequestAnswer() {
     if (!selectedRequestAnswer) {
       setNotice("Choose the sequence you think is correct, then check your answer.");
       return;
     }
     const correct = selectedRequestAnswer === "right-order";
+    const error = await saveLessonAction({ action: "practice", answer: selectedRequestAnswer });
+    if (error) {
+      setNotice(error);
+      return;
+    }
     setRequestAnswerResult(correct ? "correct" : "retry");
     setNotice(
       correct
@@ -209,16 +260,35 @@ export default function LearningDashboard() {
     );
   }
 
-  function finishLesson() {
-    setLessonFinished(true);
-    setNotice("Mini-lesson finished. Your practice check is not saved and does not unlock curriculum progress.");
+  async function finishLesson() {
+    const error = await saveLessonAction({ action: "finish" });
+    if (error) {
+      setNotice(error);
+      return;
+    }
+    setNotice("Mini-lesson completion saved. The practice check is not graded and no next level is unlocked yet.");
+    void learner.refresh();
+  }
+
+  async function saveLessonAction(body: Record<string, string>) {
+    try {
+      const response = await fetch("/api/lesson/day-1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) return result.error ?? "Could not save lesson progress.";
+      return "";
+    } catch (caught) {
+      return caught instanceof Error ? caught.message : "Could not save lesson progress.";
+    }
   }
 
   function selectDay(day: number) {
     setActiveDay(day);
     setSelectedRequestAnswer("");
     setRequestAnswerResult(null);
-    setLessonFinished(false);
     mentor.resetMessages([{
       role: "mentor",
       text: `${lessonDetails[day].topic}. Ask me about anything unclear, then choose if and when to try the separate practice check.`,
@@ -233,6 +303,7 @@ export default function LearningDashboard() {
         onClose={() => setMobileMenuOpen(false)}
         activeDay={activeDay}
         onDaySelect={selectDay}
+        learnerState={learner.state}
       />
 
       <section className="main-column">
@@ -278,6 +349,18 @@ export default function LearningDashboard() {
             </div>
           )}
 
+          {learner.loading && (
+            <section className="placement-panel" aria-live="polite">Loading your saved learner record…</section>
+          )}
+          {!learner.loading && learner.error && (
+            <div className="placement-error" role="alert">
+              {learner.error} Start PostgreSQL and apply the database migrations to load saved progress.
+            </div>
+          )}
+          {!learner.loading && !learner.error && (
+            <PlacementAssessment onComplete={handlePlacementComplete} />
+          )}
+
           <section className="summary-grid strict-scorecard" aria-label="Strict progress scorecard">
             <article className="summary-card">
               <span className="card-overline">EXERCISE PASS RATE</span>
@@ -285,22 +368,42 @@ export default function LearningDashboard() {
               <span className="summary-note">No graded attempts yet</span>
             </article>
             <article className="summary-card">
-              <span className="card-overline">SKILL MASTERY</span>
-              <strong className="summary-number">Not assessed</strong>
-              <span className="summary-note">Placement check is not connected yet</span>
+              <span className="card-overline">PLACEMENT SCORE</span>
+              <strong className="summary-number">{learner.state?.placement ? `${learner.state.placement.overallScore}%` : "Not assessed"}</strong>
+              <span className="summary-note">Placement snapshot · not mastery</span>
             </article>
             <article className="summary-card">
-              <span className="card-overline">REVIEWS DUE</span>
-              <strong className="summary-number">Not tracked</strong>
-              <span className="summary-note">No learner review history yet</span>
+              <span className="card-overline">LESSON PROGRESS</span>
+              <strong className="summary-number">
+                {lessonFinished
+                  ? "Complete"
+                  : learner.state?.lesson.status === "in_progress"
+                    ? "In progress"
+                    : "Not started"}
+              </strong>
+              <span className="summary-note">
+                {lessonFinished
+                  ? "Completion saved"
+                  : learner.state?.lesson.status === "in_progress"
+                    ? "Day 1 lesson"
+                    : placementComplete
+                      ? "Ready to begin"
+                      : "Available after placement"}
+              </span>
             </article>
             <article className="summary-card gate-summary">
               <span className="card-overline">STARTING LEVEL</span>
-              <strong className="summary-number">Pending</strong>
-              <span className="summary-note">Determined after the placement check</span>
+              <strong className="summary-number">{learner.state?.placement ? `Level ${learner.state.placement.recommendedLevel}` : "Pending"}</strong>
+              <span className="summary-note">{learner.state?.placement?.recommendedLevelTitle ?? "Determined after placement"}</span>
             </article>
           </section>
 
+          {!placementComplete && (
+            <div className="placement-gate-note">
+              Complete the placement check above to see your Day 1 lesson and its saved progress.
+            </div>
+          )}
+          {placementComplete && (
           <div className="content-grid">
             <div className="lesson-column">
               <section className="mission-card">
@@ -358,14 +461,14 @@ export default function LearningDashboard() {
                       <p className="lesson-answer-feedback">Try again, or ask the mentor to explain the sequence. This is practice only.</p>
                     )}
                     <div className="lesson-practice-actions">
-                      <button className="primary-button" onClick={checkWebRequestAnswer} disabled={requestAnswerResult === "correct"}>
+                      <button className="primary-button" onClick={() => void checkWebRequestAnswer()} disabled={requestAnswerResult === "correct"}>
                         <Check size={14} /> Check answer
                       </button>
                       <button className="lesson-finish-button" onClick={finishLesson} disabled={lessonFinished}>
                         {lessonFinished ? "Finished" : "Finish lesson"}
                       </button>
                     </div>
-                    {lessonFinished && <p className="lesson-finished-note" role="status">You finished this mini-lesson. No grade or curriculum progress was recorded.</p>}
+                    {lessonFinished && <p className="lesson-finished-note" role="status">You finished this mini-lesson. Completion is saved; no grade or next-level unlock is recorded.</p>}
                   </div>
                 </div>
                 <div className="mission-footer">
@@ -376,14 +479,14 @@ export default function LearningDashboard() {
 
               <section className="section-block">
                 <div className="section-heading">
-                  <div><h2>30-day route</h2><span className="map-subtitle">Day 1 foundations · placement is not implemented yet</span></div>
+                  <div><h2>30-day route</h2><span className="map-subtitle">Day 1 foundations · later lessons remain a preview</span></div>
                   <Link className="subtle-link" href="/skills">Readiness details <ArrowRight size={14} /></Link>
                 </div>
                 <div className="curriculum-card">
                   <div className="curriculum-top">
                     <div className="curriculum-level-icon"><Code2 size={17} /></div>
                     <div className="curriculum-title"><span>LEVEL 00 <b>·</b> DAY 01</span><strong>Foundations intro</strong></div>
-                    <div className="level-progress"><span>Lesson preview · no placement assessment</span><div className="level-track"><i /></div></div>
+                    <div className="level-progress"><span>Placement complete · later lessons are a preview</span><div className="level-track"><i /></div></div>
                     <button className="icon-button card-menu" aria-label="Curriculum options"><MoreHorizontal size={18} /></button>
                   </div>
                   <div className="curriculum-days">
@@ -401,15 +504,15 @@ export default function LearningDashboard() {
                         {index < 4 && <span className="node-line" />}
                       </button>
                     ))}
-                    <button className="curriculum-more" onClick={() => setNotice("The full 30-day curriculum is a preview. Placement and lesson unlocks are not connected yet.")}><ArrowRight size={16} /><span>View all<br />30 days</span></button>
+                    <button className="curriculum-more" onClick={() => setNotice("Only Day 1 has a saved lesson. Progression rules and later lessons are not implemented yet.")}><ArrowRight size={16} /><span>View all<br />30 days</span></button>
                   </div>
                 </div>
               </section>
 
               <div className="lower-grid">
                 <section className="panel-card skills-card">
-                  <div className="panel-heading"><div><span className="section-kicker">MASTERY</span><h3>Skill evidence</h3></div><button className="text-icon" aria-label="Skill profile options"><MoreHorizontal size={18} /></button></div>
-                  <SkillBars />
+                  <div className="panel-heading"><div><span className="section-kicker">PLACEMENT</span><h3>Skill snapshot</h3></div><button className="text-icon" aria-label="Skill profile options"><MoreHorizontal size={18} /></button></div>
+                  <SkillBars scores={learner.state?.placement?.skills} />
                   <Link className="subtle-link skill-link" href="/skills">View skill profile <ArrowRight size={13} /></Link>
                 </section>
                 <section className="panel-card achievement-card">
@@ -469,14 +572,15 @@ export default function LearningDashboard() {
 
               <div className="today-progress">
                 <div className="today-progress-head"><strong>Today’s checklist</strong><button className="text-icon" aria-label="Checklist options"><MoreHorizontal size={16} /></button></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Read the web-request lesson</strong><small>Available now · 5 min</small></div><ArrowRight size={14} /></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Try the sequence practice</strong><small>Optional · not graded</small></div><ArrowRight size={14} /></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Take the placement assessment</strong><small>Not implemented yet</small></div><LockKeyhole size={14} /></div>
-                <button className="checklist-link" onClick={() => setNotice("Placement, saved progress, and the daily checklist are not connected yet.")}>Progress tracking status <ArrowRight size={13} /></button>
+                <div className="checklist-item"><span className={lessonFinished ? "check-done" : "check-empty"} /><div><strong>Read the web-request lesson</strong><small>{lessonFinished ? "Completed · saved" : "In progress · 5 min"}</small></div><ArrowRight size={14} /></div>
+                <div className="checklist-item"><span className={learner.state?.lesson.practiceAnswer ? "check-done" : "check-empty"} /><div><strong>Try the sequence practice</strong><small>{learner.state?.lesson.practiceAnswer ? "Attempt saved · not graded" : "Optional · not graded"}</small></div><ArrowRight size={14} /></div>
+                <div className="checklist-item"><span className={placementComplete ? "check-done" : "check-empty"} /><div><strong>{placementComplete ? "Placement assessment" : "Take the placement assessment"}</strong><small>{placementComplete ? "Complete · results saved" : "20-question check"}</small></div>{placementComplete ? <Check size={14} /> : <LockKeyhole size={14} />}</div>
+                <button className="checklist-link" onClick={() => setNotice("Placement and Day 1 progress are saved in PostgreSQL. Chat history, formal grading, and later-level unlocks are not implemented.")}>Progress tracking status <ArrowRight size={13} /></button>
               </div>
             </aside>
           </div>
-          <footer className="page-footer"><span>Progress, placement, and grading are not connected; no learner results are being reported.</span><span>DRUPAL 7 TRACK <b>·</b> DAY 01</span></footer>
+          )}
+          <footer className="page-footer"><span>Placement and Day 1 completion are saved. Chat, formal grading, and level unlocks are not.</span><span>DRUPAL 7 TRACK <b>·</b> DAY 01</span></footer>
         </div>
       </section>
     </main>

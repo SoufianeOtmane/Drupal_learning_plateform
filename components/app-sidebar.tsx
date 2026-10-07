@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
+import type { LearnerState } from "@/lib/learner-types";
 
 export const learningDays: ReadonlyArray<{
   day: number;
@@ -43,6 +44,7 @@ type AppSidebarProps = {
   onClose: () => void;
   activeDay?: number;
   onDaySelect?: (day: number) => void;
+  learnerState?: LearnerState | null;
 };
 
 export default function AppSidebar({
@@ -50,6 +52,7 @@ export default function AppSidebar({
   onClose,
   activeDay = 1,
   onDaySelect,
+  learnerState,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -150,7 +153,10 @@ export default function AppSidebar({
           </div>
           <button className="profile-button">
             <div className="avatar">S</div>
-            <div className="profile-name"><strong>New learner</strong><span>Level not assessed</span></div>
+            <div className="profile-name">
+              <strong>{learnerState?.placement ? "Placement complete" : "New learner"}</strong>
+              <span>{learnerState?.placement ? `Suggested Level ${learnerState.placement.recommendedLevel}` : "Level not assessed"}</span>
+            </div>
             <MoreHorizontal size={17} />
           </button>
         </div>

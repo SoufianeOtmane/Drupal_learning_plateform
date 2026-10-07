@@ -26,6 +26,8 @@ import {
   Zap,
 } from "lucide-react";
 import AppSidebar from "@/components/app-sidebar";
+import { useLearnerState } from "@/hooks/use-learner-state";
+import type { LearnerState, PlacementSkill } from "@/lib/learner-types";
 
 export type WorkspaceView = "overview" | "practice" | "mentor" | "skills";
 
@@ -37,7 +39,7 @@ const pageInfo: Record<WorkspaceView, { eyebrow: string; title: string; descript
   overview: {
     eyebrow: "YOUR LEARNING AT A GLANCE",
     title: "Overview",
-    description: "Start at Day 1. Progress and assessment history will appear here once saving and grading are implemented.",
+    description: "Your placement result and Day 1 lesson completion are saved to your learner record.",
   },
   practice: {
     eyebrow: "HANDS-ON TRAINING",
@@ -47,22 +49,21 @@ const pageInfo: Record<WorkspaceView, { eyebrow: string; title: string; descript
   mentor: {
     eyebrow: "YOUR STRICT DRUPAL 7 COACH",
     title: "Mentor chat",
-    description: "Ask a question or request a beginner-friendly explanation. Chat is live; learner progress is not saved.",
+    description: "Ask a question or request a beginner-friendly explanation. Chat is live; conversation history is not saved.",
   },
   skills: {
     eyebrow: "YOUR LEARNER PROFILE",
     title: "Skill profile",
-    description: "Skills are not assessed yet. Complete placement and graded exercises to build this profile.",
+    description: "Placement scores show your current starting point; they are not proof of mastery.",
   },
 };
 
-const skillData = [
-  { name: "Site building", detail: "Content, fields, Views, and site configuration" },
-  { name: "Module development", detail: "Hooks, Form API, Database API, and custom modules" },
-  { name: "Security", detail: "Access checks, input handling, and secure coding" },
-  { name: "Theming", detail: "Templates, preprocess functions, and responsive design" },
-  { name: "Performance", detail: "Caching, query tuning, and production diagnosis" },
-  { name: "Operations", detail: "Drush, deployments, backups, and environment parity" },
+const skillData: { key: PlacementSkill; name: string; detail: string }[] = [
+  { key: "php", name: "PHP", detail: "Variables, arrays, and common language basics" },
+  { key: "web", name: "Web basics", detail: "Browser requests, server responses, and HTTP" },
+  { key: "sql", name: "SQL", detail: "Reading rows, filtering, and safe parameters" },
+  { key: "git_cli", name: "Git & command line", detail: "Repository status and basic terminal commands" },
+  { key: "drupal", name: "Drupal 7", detail: "Modules, hooks, content types, and taxonomy" },
 ];
 
 const practiceExercises = [
@@ -71,15 +72,27 @@ const practiceExercises = [
   { title: "Validate a Form API submission", skill: "Form API", time: "30 min", icon: FlaskConical },
 ];
 
-function OverviewContent() {
+function OverviewContent({
+  state,
+  loading,
+  error,
+}: {
+  state: LearnerState | null;
+  loading: boolean;
+  error: string;
+}) {
+  const placement = state?.placement;
+  const lessonFinished = state?.lesson.status === "completed";
+
   return (
     <>
+      {error && <div className="placement-error" role="alert">{error} Start PostgreSQL and apply migrations to load this page.</div>}
       <section className="workspace-stats">
         <article className="workspace-stat">
           <div className="workspace-stat-icon mint-stat"><BookOpen size={17} /></div>
-          <span className="card-overline">PROGRAM PROGRESS</span>
-          <strong>Day 01 <small>of 30</small></strong>
-          <span className="workspace-stat-note">New learner · placement pending</span>
+          <span className="card-overline">CURRENT STEP</span>
+          <strong>Day 01</strong>
+          <span className="workspace-stat-note">{loading ? "Loading learner record" : lessonFinished ? "Day 1 lesson completed" : placement ? "Placement complete · lesson not finished" : "Placement required before the lesson"}</span>
         </article>
         <article className="workspace-stat">
           <div className="workspace-stat-icon amber-stat"><Zap size={17} /></div>
@@ -96,24 +109,24 @@ function OverviewContent() {
         <article className="workspace-stat">
           <div className="workspace-stat-icon violet-stat"><Target size={17} /></div>
           <span className="card-overline">JOB READINESS</span>
-          <strong>Not assessed</strong>
-          <span className="workspace-stat-note">Complete assessments to establish mastery</span>
+          <strong>{placement ? `Level ${placement.recommendedLevel}` : loading ? "Loading…" : "Not assessed"}</strong>
+          <span className="workspace-stat-note">{placement?.recommendedLevelTitle ?? "Suggested starting point"}</span>
         </article>
       </section>
       <section className="workspace-grid">
         <article className="workspace-panel overview-mission">
           <div className="section-kicker">DAY 1 · START HERE</div>
-          <h2>Foundations check</h2>
-          <p>Tell the mentor what you already know about PHP, web basics, SQL, Git, and the command line. No prior Drupal knowledge or code is expected.</p>
-          <div className="workspace-meta"><span><AlarmClock size={14} /> 20–30 min</span><span><FlaskConical size={14} /> Placement check planned</span></div>
-          <Link className="primary-button" href="/learning"><Play size={14} fill="currentColor" /> Meet your mentor <ArrowRight size={15} /></Link>
+          <h2>{placement ? "Placement complete" : "Start with placement"}</h2>
+          <p>{placement ? placement.recommendationReason : "Answer 20 curated questions across PHP, web basics, SQL, Git, the command line, and Drupal 7. No code or prior Drupal knowledge is required."}</p>
+          <div className="workspace-meta"><span><AlarmClock size={14} /> About 10–15 min</span><span><FlaskConical size={14} /> Deterministic scoring</span></div>
+          <Link className="primary-button" href="/learning"><Play size={14} fill="currentColor" /> {placement ? "Continue Day 1 lesson" : "Take placement check"} <ArrowRight size={15} /></Link>
         </article>
         <article className="workspace-panel">
           <div className="section-kicker">FIRST-DAY CHECKLIST</div>
-          <h2>Nothing completed yet</h2>
-          <div className="workspace-check"><span className="check-empty" /><div><strong>Tell the mentor your experience</strong><small>No code required</small></div></div>
-          <div className="workspace-check"><span className="check-empty" /><div><strong>Complete the placement check</strong><small>Planned · not implemented</small></div></div>
-          <div className="workspace-check"><span className="check-empty" /><div><strong>Set up Drupal 7</strong><small>After placement</small></div></div>
+          <h2>{lessonFinished ? "Day 1 complete" : "Your next steps"}</h2>
+          <div className="workspace-check"><span className={placement ? "check-done" : "check-empty"} /><div><strong>Complete placement check</strong><small>{placement ? "Saved to PostgreSQL" : "20 questions · answers save as you go"}</small></div></div>
+          <div className="workspace-check"><span className={lessonFinished ? "check-done" : "check-empty"} /><div><strong>Finish the web-request lesson</strong><small>{lessonFinished ? "Completion saved" : placement ? "Ready in the learning path" : "Available after placement"}</small></div></div>
+          <div className="workspace-check"><span className="check-empty" /><div><strong>Continue into Drupal 7</strong><small>Later lessons and unlock rules are not implemented yet</small></div></div>
         </article>
       </section>
       <div className="workspace-shortcuts">
@@ -200,34 +213,51 @@ function MentorContent() {
   );
 }
 
-function SkillsContent() {
+function SkillsContent({
+  state,
+  loading,
+  error,
+}: {
+  state: LearnerState | null;
+  loading: boolean;
+  error: string;
+}) {
+  const placement = state?.placement;
+
   return (
     <>
+      {error && <div className="placement-error" role="alert">{error} Start PostgreSQL and apply migrations to load this page.</div>}
       <section className="skill-profile-banner">
         <div className="skill-profile-icon"><Gauge size={20} /></div>
-        <div><span className="section-kicker">OVERALL JOB READINESS</span><strong>Not assessed</strong><p>No placement answers or graded attempts are available yet.</p></div>
+        <div><span className="section-kicker">PLACEMENT SNAPSHOT · NOT JOB READINESS</span><strong>{placement ? `${placement.overallScore}% overall` : loading ? "Loading…" : "Not assessed"}</strong><p>{placement ? `Suggested start: Level ${placement.recommendedLevel} · ${placement.recommendedLevelTitle}` : "Complete the placement check to establish an initial skills snapshot."}</p></div>
       </section>
       <section className="workspace-panel detailed-skills">
-        <div className="panel-heading"><div><span className="section-kicker">COMPETENCY BREAKDOWN</span><h2>Skills awaiting evidence</h2></div><span className="demo-pill">NO ASSESSMENTS</span></div>
+        <div className="panel-heading"><div><span className="section-kicker">PLACEMENT RESULTS</span><h2>{placement ? "Starting-point scores" : "Skills awaiting assessment"}</h2></div><span className="demo-pill">{placement ? "ASSESSMENT" : "NOT ASSESSED"}</span></div>
         {skillData.map((skill) => (
           <div className="detailed-skill" key={skill.name}>
-            <div className="detailed-skill-head"><div><strong>{skill.name}</strong><small>{skill.detail}</small></div><span>Not assessed</span></div>
+            <div className="detailed-skill-head">
+              <div><strong>{skill.name}</strong><small>{skill.detail}</small></div>
+              <span>{placement ? `${placement.skills[skill.key].score}%` : "Not assessed"}</span>
+            </div>
+            {placement && <div className="placement-meter"><i style={{ width: `${placement.skills[skill.key].score}%` }} /></div>}
+            {placement && <small className="placement-evidence">{placement.skills[skill.key].correct} of {placement.skills[skill.key].total} placement questions correct</small>}
           </div>
         ))}
       </section>
-      <div className="workspace-note"><ShieldCheck size={16} /><span>Planned mastery rule: pass two different exercises at 80% or higher, at least one day apart. This rule is not enforced until grading and progress storage are implemented.</span></div>
+      <div className="workspace-note"><ShieldCheck size={16} /><span>These scores are a placement snapshot, not mastery. The AI mentor explains concepts; deterministic exercise grading and level-unlock rules are still planned.</span></div>
     </>
   );
 }
 
 export default function WorkspacePage({ view }: WorkspacePageProps) {
+  const learner = useLearnerState();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const info = pageInfo[view];
 
   return (
     <main className="app-shell">
-      <AppSidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <AppSidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} learnerState={learner.state} />
       <section className="main-column">
         <header className="topbar">
           <div className="breadcrumbs">
@@ -243,10 +273,10 @@ export default function WorkspacePage({ view }: WorkspacePageProps) {
             <p>{info.description}</p>
           </div>
           {notice && <div className="notice-banner" role="status"><Sparkles size={15} /> {notice}<button onClick={() => setNotice("")} aria-label="Dismiss notification">×</button></div>}
-          {view === "overview" && <OverviewContent />}
+          {view === "overview" && <OverviewContent state={learner.state} loading={learner.loading} error={learner.error} />}
           {view === "practice" && <PracticeContent onNotice={setNotice} />}
           {view === "mentor" && <MentorContent />}
-          {view === "skills" && <SkillsContent />}
+          {view === "skills" && <SkillsContent state={learner.state} loading={learner.loading} error={learner.error} />}
           <footer className="page-footer"><span>Built for the real world, one hook at a time.</span><span><ShieldCheck size={13} /> STRICT MODE <b>·</b> {view.toUpperCase()}</span></footer>
         </div>
       </section>

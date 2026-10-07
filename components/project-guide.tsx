@@ -17,20 +17,21 @@ import {
   Workflow,
 } from "lucide-react";
 import AppSidebar from "@/components/app-sidebar";
+import { useLearnerState } from "@/hooks/use-learner-state";
 
 const learningSteps = [
   {
     number: "01",
-    title: "Open Learning path",
-    text: "Start with the Day 1 web-request lesson at /learning. The placement test is planned but not implemented yet.",
+    title: "Complete placement",
+    text: "Start in /learning with 20 curated questions across PHP, web basics, SQL, Git/CLI, and Drupal 7. Answers save as you go and the server calculates a suggested starting level.",
     href: "/learning",
-    link: "Go to the Day 1 lesson",
+    link: "Take the placement check",
     icon: BookOpen,
   },
   {
     number: "02",
     title: "Learn in small steps",
-    text: "A lesson presents one short concept. Ask the mentor about anything unclear; normal questions are answered directly, not turned into a quiz.",
+    text: "After placement, read the bounded Day 1 web-request lesson. Its completion and optional practice answer are saved; chat questions are not graded.",
     href: "/learning",
     link: "Open Day 1 web-request lesson",
     icon: Code2,
@@ -38,7 +39,7 @@ const learningSteps = [
   {
     number: "03",
     title: "Ask the mentor when stuck",
-    text: "Use the mentor panel for open Q&A. It should answer first and avoid repeated follow-up questions. Chat history and skill level are not saved between sessions yet.",
+    text: "Use the mentor panel for open Q&A. It answers directly and avoids repeated follow-up questions. Chat history is not saved between sessions.",
     href: "/mentor",
     link: "Open Mentor chat",
     icon: MessageSquareText,
@@ -46,7 +47,7 @@ const learningSteps = [
   {
     number: "04",
     title: "Run, submit, and review",
-    text: "Practice is a separate, clearly labeled activity with a task and submit/check action. The Day 1 sequence check is interactive but ungraded; code execution and formal grading are planned, not live.",
+    text: "The Day 1 sequence check is separate and ungraded. Code execution and formal grading are planned, not live.",
     href: "/practice",
     link: "Browse Practice lab",
     icon: FlaskConical,
@@ -54,7 +55,7 @@ const learningSteps = [
   {
     number: "05",
     title: "Clear the gate before advancing",
-    text: "You explicitly finish a lesson when ready; the mentor does not keep extending it. Later, a deterministic grader records exercise results and a progression service enforces prerequisites and the 85% level gate. Gemini cannot pass or unlock anything.",
+    text: "You explicitly finish Day 1 when ready. Completion is saved, but later lessons, deterministic coding-exercise grading, and automatic progression are not implemented. Gemini cannot pass or unlock anything.",
     href: "/skills",
     link: "Check your Skill profile",
     icon: ShieldCheck,
@@ -63,7 +64,9 @@ const learningSteps = [
 
 const backendTasks = [
   "Chat API: TypeScript route, server-held Gemini key, input limits, streaming, and provider error reporting.",
-  "Learner data: PostgreSQL tables for profile, skills, lessons, progress, attempts, chat history, and review cards.",
+  "Implemented: PostgreSQL learner profile, placement attempts, answer-by-answer persistence, assessment results, and Day 1 lesson progress.",
+  "Implemented: curated 20-question placement test with private answer keys, deterministic category scoring, and advisory start-level recommendations.",
+  "Implemented: Docker Compose app/database stack, persistent database volume, health checks, and startup migrations.",
   "Curriculum: versioned lesson and exercise definitions, prerequisites, strict rubrics, and level-gate rules.",
   "Grader: run functional checks, coding standards, and security checks; calculate scores deterministically.",
   "Progression service: persist grader results, enforce prerequisites and level gates, and never accept an AI chat claim as a pass.",
@@ -74,10 +77,11 @@ const backendTasks = [
 
 export default function ProjectGuide() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const learner = useLearnerState();
 
   return (
     <main className="app-shell">
-      <AppSidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <AppSidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} learnerState={learner.state} />
       <section className="main-column">
         <header className="topbar">
           <div className="breadcrumbs">
@@ -127,7 +131,7 @@ export default function ProjectGuide() {
               <li><Check size={14} /><span>Keep chat questions separate from the exercise; make practice clearly labeled with an objective and a check/submit action.</span></li>
               <li><Check size={14} /><span>Stop when the learner finishes. If they struggle during practice, explain differently; do not pretend chat answers were graded.</span></li>
             </ol>
-            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Day 1 has an ungraded practice check and an explicit finish button. Persistent learner records, placement, formal grading, and unlocks are not implemented yet.</span></div>
+            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Placement and Day 1 progress are stored in PostgreSQL; the practice check is ungraded. Formal coding-exercise grading and unlocks are not implemented yet.</span></div>
           </section>
 
           <section className="guide-backend">
@@ -135,8 +139,8 @@ export default function ProjectGuide() {
               <div className="guide-backend-icon"><Layers3 size={19} /></div>
               <div>
                 <span className="section-kicker">RECOMMENDED BACKEND</span>
-                <h2>TypeScript for the app, Docker for Drupal</h2>
-                <p>Keep one language across the current Next.js frontend and application API. The Drupal exercise runtime remains an isolated PHP environment.</p>
+                <h2>TypeScript for the app, Docker for services</h2>
+                <p>The Next.js app and PostgreSQL run in Compose. A future Drupal exercise runtime should remain a separate isolated PHP environment.</p>
               </div>
             </div>
             <div className="backend-stack">
@@ -145,11 +149,11 @@ export default function ProjectGuide() {
               <div><FlaskConical size={15} /><span><strong>Code execution</strong><small>Docker · PHP 7.4 · Drupal 7 · MariaDB</small></span></div>
               <div><KeyRound size={15} /><span><strong>AI credentials</strong><small>Server environment only · never browser code</small></span></div>
             </div>
-            <h3>What still needs to be built</h3>
+            <h3>Implementation status and remaining roadmap</h3>
             <ul className="backend-task-list">
               {backendTasks.map((task) => <li key={task}><Check size={14} /> <span>{task}</span></li>)}
             </ul>
-            <div className="guide-security-note"><ShieldCheck size={16} /><span>Do not commit API keys. A key pasted into chat should be revoked and replaced. Configure the new value in ignored <code>.env.local</code>.</span></div>
+            <div className="guide-security-note"><ShieldCheck size={16} /><span>This MVP has a single shared learner record and no authentication; do not expose it publicly. Do not commit API keys. Configure credentials in the ignored <code>.env</code> file.</span></div>
           </section>
 
           <footer className="page-footer"><span>The chatbot currently uses a server API route; persistent learner data and sandbox grading are next.</span><span>PROJECT GUIDE</span></footer>
