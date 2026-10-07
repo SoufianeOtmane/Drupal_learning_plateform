@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -21,6 +22,8 @@ import {
   X,
 } from "lucide-react";
 import type { LearnerState } from "@/lib/learner-types";
+import { useAuthSession } from "@/components/auth-gate";
+import { readApiResponse } from "@/lib/read-api-response";
 
 export const learningDays: ReadonlyArray<{
   day: number;
@@ -59,9 +62,28 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user } = useAuthSession();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
   const currentDay = Math.min(learnerState?.currentDay ?? 1, learningDays.length);
   const completedDays = learnerState?.completedDays ?? {};
   const selectedDay = learningDays[activeDay - 1] ?? learningDays[0];
+
+  async function signOut() {
+    setSigningOut(true);
+    setSignOutError("");
+    try {
+      await readApiResponse<{ signedOut: boolean }>(
+        await fetch("/api/auth/logout", { method: "POST" }),
+      );
+      router.replace("/login");
+      router.refresh();
+    } catch (caught) {
+      setSignOutError(caught instanceof Error ? caught.message : "Could not sign out.");
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <>
@@ -159,14 +181,15 @@ export default function AppSidebar({
             <div><strong>Streak not tracked</strong><span>Complete a lesson to begin</span></div>
             <ArrowUpRight size={15} />
           </div>
-          <button className="profile-button">
-            <div className="avatar">S</div>
+          <button className="profile-button" onClick={() => void signOut()} disabled={signingOut} aria-label={`Sign out ${user?.email ?? "learner"}`}>
+            <div className="avatar">{user?.email.slice(0, 1).toUpperCase() ?? "L"}</div>
             <div className="profile-name">
-              <strong>{learnerState?.placement ? "Placement complete" : "New learner"}</strong>
-              <span>{learnerState?.placement ? `Suggested Level ${learnerState.placement.recommendedLevel}` : "Level not assessed"}</span>
+              <strong>{user?.email ?? "Learner account"}</strong>
+              <span>{signingOut ? "Signing out…" : "Sign out"}</span>
             </div>
             <MoreHorizontal size={17} />
           </button>
+          {signOutError && <p className="auth-error" role="alert">{signOutError}</p>}
         </div>
       </aside>
     </>

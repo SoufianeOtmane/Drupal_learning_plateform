@@ -67,6 +67,7 @@ const backendTasks = [
   "Implemented: PostgreSQL learner profile, placement attempts, answer-by-answer persistence, and saved progress across Days 1–4.",
   "Implemented: curated 20-question placement test with private answer keys, deterministic category scoring, and advisory start-level recommendations.",
   "Implemented: three short lessons per day for Days 2–4, server-graded day checkpoints, and a strict 85% sequential unlock gate.",
+  "Implemented: email/password accounts, scrypt password hashing, hashed server-side sessions, and per-account learner data.",
   "Implemented: Docker Compose app/database stack, persistent database volume, health checks, and startup migrations.",
   "Future curriculum: write and review Days 5–30, then expand prerequisites and level-gate rules.",
   "Future grader: run coding exercises through functional, standards, and security checks with deterministic scores.",
@@ -132,7 +133,7 @@ export default function ProjectGuide() {
               <li><Check size={14} /><span>Keep chat questions separate from the exercise; make practice clearly labeled with an objective and a check/submit action.</span></li>
               <li><Check size={14} /><span>Stop when the learner finishes. If they struggle during practice, explain differently; do not pretend chat answers were graded.</span></li>
             </ol>
-            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Placement, lessons, checkpoint answers, scores, and day unlocks are persisted in PostgreSQL. Checkpoints are multiple-choice; executable coding exercises are not implemented yet.</span></div>
+            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Account sessions protect each learner's placement, lessons, checkpoint answers, scores, and day unlocks in PostgreSQL. Checkpoints are multiple-choice; executable coding exercises are not implemented yet.</span></div>
           </section>
 
           <section className="guide-backend">
