@@ -591,6 +591,27 @@ button:disabled {
   font-size: 9px;
 }
 
+.focus-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 1px solid rgba(130, 224, 182, 0.24);
+  border-radius: 6px;
+  background: rgba(130, 224, 182, 0.07);
+  color: #a8e5c4;
+  font-size: 9px;
+}
+
+.focus-exit kbd {
+  padding: 2px 4px;
+  border: 1px solid rgba(130, 224, 182, 0.17);
+  border-radius: 3px;
+  color: #8fbd9f;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+}
+
 .dashboard-content {
   width: min(100%, 1600px);
   margin: 0 auto;
@@ -1946,6 +1967,42 @@ p {
 
 .mobile-scrim {
   display: none;
+}
+
+.focus-active .sidebar,
+.focus-active .welcome-row,
+.focus-active .summary-grid,
+.focus-active .section-block,
+.focus-active .lower-grid,
+.focus-active .mentor-panel,
+.focus-active .page-footer {
+  display: none;
+}
+
+.focus-active .dashboard-content {
+  width: min(100%, 1050px);
+  padding-top: 35px;
+}
+
+.focus-active .content-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.focus-active .lesson-column {
+  gap: 0;
+}
+
+.focus-active .mission-main {
+  min-height: 320px;
+  align-items: center;
+}
+
+.focus-active .mission-copy {
+  width: 72%;
+}
+
+.focus-active .mission-art {
+  right: 5%;
 }
 
 @keyframes appear {

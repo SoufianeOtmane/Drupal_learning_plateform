@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   AlarmClock,
   ArrowDown,
@@ -212,8 +212,18 @@ export default function LearningDashboard() {
   const [hintCount, setHintCount] = useState(0);
   const [lessonStarted, setLessonStarted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [notice, setNotice] = useState("");
   const detail = lessonDetails[activeDay];
+
+  useEffect(() => {
+    if (!focusMode) return;
+    function leaveFocusMode(event: KeyboardEvent) {
+      if (event.key === "Escape") setFocusMode(false);
+    }
+    window.addEventListener("keydown", leaveFocusMode);
+    return () => window.removeEventListener("keydown", leaveFocusMode);
+  }, [focusMode]);
 
   function sendMessage(text: string) {
     const cleanText = text.trim();
@@ -275,7 +285,7 @@ export default function LearningDashboard() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${focusMode ? "focus-active" : ""}`}>
       {mobileMenuOpen && (
         <button
           className="mobile-scrim"
@@ -361,6 +371,11 @@ export default function LearningDashboard() {
             <span>Learning path</span><span className="crumb-slash">/</span><span className="crumb-current">Module developer</span>
           </div>
           <div className="topbar-actions">
+            {focusMode && (
+              <button className="focus-exit" onClick={() => setFocusMode(false)}>
+                Exit focus <kbd>Esc</kbd>
+              </button>
+            )}
             <div className="streak-pill"><Flame size={15} fill="currentColor" /><span>6</span></div>
             <button className="search-button" onClick={() => setNotice("Search and command palette are coming soon.")}>
               <Search size={15} /><span>Search anything</span><kbd><Command size={11} /> K</kbd>
@@ -376,8 +391,12 @@ export default function LearningDashboard() {
               <h1>Good afternoon, Soufiane <span className="wave">✳</span></h1>
               <p className="welcome-subtitle">Small steps. Production-ready Drupal. Let’s keep the momentum.</p>
             </div>
-            <button className="focus-button" onClick={() => setNotice("Focus mode is ready for your next lesson.")}>
-              <Zap size={15} /> Focus mode
+            <button
+              className="focus-button"
+              onClick={() => setFocusMode((current) => !current)}
+              aria-pressed={focusMode}
+            >
+              <Zap size={15} /> {focusMode ? "Exit focus" : "Focus mode"}
             </button>
           </div>
 
