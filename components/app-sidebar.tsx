@@ -16,6 +16,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Plus,
+  Route,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const navigation = [
   { href: "/practice", label: "Practice lab", icon: FlaskConical, badge: "2" },
   { href: "/mentor", label: "Mentor chat", icon: MessageSquareText },
   { href: "/skills", label: "Skill profile", icon: ShieldCheck },
+  { href: "/guide", label: "Project guide", icon: Route },
 ];
 
 type AppSidebarProps = {
