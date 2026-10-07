@@ -1778,6 +1778,23 @@ p {
   color: #817b7b;
 }
 
+.hint-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -3px 12px 8px;
+  color: #9a8bba;
+  font-size: 8px;
+}
+
+.hint-meter strong {
+  margin-left: auto;
+  color: #d8b27c;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  font-weight: 500;
+}
+
 .chat-composer {
   margin: 0 10px;
   padding: 8px 8px 6px;

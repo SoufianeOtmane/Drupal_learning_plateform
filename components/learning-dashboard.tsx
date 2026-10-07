@@ -49,6 +49,8 @@ const lessons = [
   { day: 14, title: "Blocks & cron", state: "locked" },
 ];
 
+const hintCosts = [3, 6, 10] as const;
+
 const lessonDetails: Record<
   number,
   {
@@ -215,6 +217,7 @@ export default function LearningDashboard() {
   const [focusMode, setFocusMode] = useState(false);
   const [notice, setNotice] = useState("");
   const detail = lessonDetails[activeDay];
+  const hintPenalty = hintCosts.slice(0, hintCount).reduce((total, cost) => total + cost, 0);
 
   useEffect(() => {
     if (!focusMode) return;
@@ -237,7 +240,9 @@ export default function LearningDashboard() {
     } else if (lower.includes("hint")) {
       const nextHint = Math.min(hintCount + 1, 3);
       setHintCount(nextHint);
-      response = detail.hints[nextHint - 1];
+      const nextCost = hintCosts[nextHint - 1];
+      const totalPenalty = hintCosts.slice(0, nextHint).reduce((total, cost) => total + cost, 0);
+      response = `${detail.hints[nextHint - 1]} Hint ${nextHint} costs ${nextCost} points (${totalPenalty} total penalty).`;
     } else if (lower.includes("example")) {
       response = "I won’t provide a complete solution before an attempt. Write the menu item skeleton first; then I can review it.";
     } else if (lower.includes("test me")) {
@@ -550,6 +555,13 @@ export default function LearningDashboard() {
                   </button>
                 ))}
               </div>
+              {hintCount > 0 && (
+                <div className="hint-meter" role="status">
+                  <Lightbulb size={12} />
+                  <span>{hintCount} of 3 hints used</span>
+                  <strong>−{hintPenalty} pts</strong>
+                </div>
+              )}
               <form className="chat-composer" onSubmit={handleSubmit}>
                 <input
                   value={draft}
