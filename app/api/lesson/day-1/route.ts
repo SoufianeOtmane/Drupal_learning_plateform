@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withDatabaseErrors } from "@/lib/database-api";
 import { getDbPool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
-  }
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return NextResponse.json({ error: "Request body must be an object." }, { status: 400 });
-  }
+  return withDatabaseErrors(async () => {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return NextResponse.json({ error: "Request body must be an object." }, { status: 400 });
+    }
 
   const input = body as Record<string, unknown>;
   const pool = getDbPool();
@@ -71,5 +73,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ completed: true });
   }
 
-  return NextResponse.json({ error: "Choose a valid lesson action." }, { status: 400 });
+    return NextResponse.json({ error: "Choose a valid lesson action." }, { status: 400 });
+  });
 }

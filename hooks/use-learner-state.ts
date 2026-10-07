@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LearnerState } from "@/lib/learner-types";
+import { readApiResponse } from "@/lib/read-api-response";
 
 export function useLearnerState() {
   const [state, setState] = useState<LearnerState | null>(null);
@@ -13,9 +14,7 @@ export function useLearnerState() {
     if (!hasLoaded.current) setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/learner");
-      const payload = (await response.json()) as LearnerState & { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Could not load your learner record.");
+      const payload = await readApiResponse<LearnerState>(await fetch("/api/learner"));
       setState(payload);
       hasLoaded.current = true;
     } catch (caught) {

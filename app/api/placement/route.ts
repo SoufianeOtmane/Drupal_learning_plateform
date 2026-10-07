@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withDatabaseErrors } from "@/lib/database-api";
 import { getDbPool } from "@/lib/db";
 import {
   getPublicPlacementQuestions,
@@ -31,33 +32,36 @@ function publicAttempt(row: AttemptRow | undefined) {
 }
 
 export async function GET() {
-  const { rows } = await getDbPool().query<AttemptRow>(
-    `SELECT id, status, answers, scores, recommended_level, submitted_at
-     FROM placement_attempts
-     WHERE profile_id = 'owner'
-     ORDER BY started_at DESC, id DESC
-     LIMIT 1`,
-  );
+  return withDatabaseErrors(async () => {
+    const { rows } = await getDbPool().query<AttemptRow>(
+      `SELECT id, status, answers, scores, recommended_level, submitted_at
+       FROM placement_attempts
+       WHERE profile_id = 'owner'
+       ORDER BY started_at DESC, id DESC
+       LIMIT 1`,
+    );
 
-  return NextResponse.json({
-    questions: getPublicPlacementQuestions(),
-    attempt: publicAttempt(rows[0]),
+    return NextResponse.json({
+      questions: getPublicPlacementQuestions(),
+      attempt: publicAttempt(rows[0]),
+    });
   });
 }
 
 export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
-  }
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return NextResponse.json({ error: "Request body must be an object." }, { status: 400 });
-  }
+  return withDatabaseErrors(async () => {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return NextResponse.json({ error: "Request body must be an object." }, { status: 400 });
+    }
 
-  const input = body as Record<string, unknown>;
-  const pool = getDbPool();
+    const input = body as Record<string, unknown>;
+    const pool = getDbPool();
 
   if (input.action === "start") {
     const { rows } = await pool.query<AttemptRow>(
@@ -156,5 +160,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ error: "Unknown placement action." }, { status: 400 });
+    return NextResponse.json({ error: "Unknown placement action." }, { status: 400 });
+  });
 }
