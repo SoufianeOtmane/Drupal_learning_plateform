@@ -1,6 +1,14 @@
 # Drupal Learning Platform
 
-A frontend-first learning workspace for the Drupal 7 AI Mentor described in the project brief. This first slice focuses on the learner dashboard, curriculum navigation, progress overview, and strict mentor interaction. The API, AI provider, persistent learner profile, grading pipeline, and sandbox are not connected yet; dashboard content is illustrative and chat replies are local demo behavior.
+A frontend-first learning workspace for the Drupal 7 AI Mentor described in the project brief. This frontend includes separate Overview, Learning path, Practice lab, Mentor chat, and Skill profile pages. Progress and exercise content is illustrative; chat replies are local demo behavior, and the API, AI provider, persistent learner profile, grading pipeline, and Drupal sandbox are not connected yet.
+
+## Pages
+
+- `/overview` — daily progress and next steps
+- `/learning` — the curriculum dashboard and lesson workspace
+- `/practice` — queued hands-on exercise previews
+- `/mentor` — standalone mentor chat demo
+- `/skills` — competency breakdown and readiness
 
 ## Run locally
 
@@ -9,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use the sidebar to switch between the available lessons, start the current lesson, or try the mentor's quick actions.
+Open [http://localhost:3000](http://localhost:3000). Use the sidebar to move between the workspace pages, start the current lesson, or try the mentor's quick actions.
 
 ## Build
 
