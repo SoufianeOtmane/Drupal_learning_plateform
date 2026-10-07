@@ -1,6 +1,6 @@
 # Drupal Learning Platform
 
-A Drupal 7 learning workspace with a curated Day 1 placement check, a bounded introductory lesson, a server-side Gemini mentor, and PostgreSQL-backed learner progress.
+A Drupal 7 learning workspace with a curated placement check, sequential lessons and graded day checkpoints, a server-side Gemini mentor, and PostgreSQL-backed learner progress.
 
 ## Run with Docker Compose
 
@@ -19,11 +19,15 @@ The Compose stack stores database data in the `postgres_data` named volume. `doc
 
 - The placement assessment has 20 curated questions covering PHP, web basics, SQL, Git/CLI, and Drupal 7. Answers save after each selection; the server keeps the answer key, calculates category scores, and recommends a starting level.
 - Recommendation rule: the average of PHP, web, SQL, and Git/CLI below 60% suggests Level 0 (foundations); at least 60% there but under 60% in Drupal suggests Level 1 (site building); at least 60% in both suggests Level 2 (module development). These are advisory starting points, not unlocks.
-- Assessment results and Day 1 lesson completion/practice answers persist in PostgreSQL and are shown on Overview and Skill profile.
-- Day 1 has an explicit finish action. Its optional practice check is ungraded. Placement recommendations do not unlock later lessons.
+- Days 1–4 each have a day-end checkpoint; Days 2–4 contain three short lessons each. Lesson completion and checkpoint attempts persist in PostgreSQL.
+- Lessons must be completed in order before the checkpoint opens. A score of at least 85% unlocks the next day; placement recommendations do not skip these day gates.
 - Mentor chat streams from Gemini through `POST /api/chat`. Chat history is still held only in browser memory.
 
-Formal coding-exercise grading, automatic progression, authentication, and the Drupal sandbox are not implemented. The learner API is intentionally single-owner and has no login or access control; **do not expose this app publicly until authentication and authorization are added.** Gemini teaches but never scores placement or grants progress.
+The current curriculum checkpoints are curated multiple-choice assessments, not executable coding exercises. Authentication, multi-learner accounts, and the Drupal sandbox are not implemented. The learner API is intentionally single-owner and has no login or access control; **do not expose this app publicly until authentication and authorization are added.** Gemini teaches but never scores placement or grants progress.
+
+## Vercel deployment prerequisites
+
+Before deploying, configure a hosted PostgreSQL database and set `DATABASE_URL` and `GEMINI_API_KEY` in Vercel's project environment. The Vercel build command applies pending database migrations, so the database user must be allowed to create and alter tables. Deployment is not appropriate for public learners until authentication and per-user authorization are implemented.
 
 ## Environment variables
 
