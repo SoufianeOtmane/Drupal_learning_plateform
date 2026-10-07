@@ -4,9 +4,11 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AppSidebar, { learningDays } from "@/components/app-sidebar";
 import ChatMessageContent from "@/components/chat-message-content";
+import DayCurriculum from "@/components/day-curriculum";
 import PlacementAssessment from "@/components/placement-assessment";
 import { useLearnerState } from "@/hooks/use-learner-state";
 import { useMentorChat } from "@/hooks/use-mentor-chat";
+import { readApiResponse } from "@/lib/read-api-response";
 import type { PlacementSkill, PlacementSkillResult } from "@/lib/learner-types";
 import {
   AlarmClock,
@@ -64,6 +66,42 @@ const lessonDetails: Record<
     ],
     testQuestion: "Which happens first: the browser requests the page, or the server sends it?",
     firstStep: "A browser requests a page; the server processes it and sends a response back.",
+  },
+  2: {
+    title: "PHP building blocks",
+    topic: "Variables, values, conditions, and arrays",
+    minutes: 25,
+    hints: [
+      "PHP variable names begin with a dollar sign.",
+      "A single equals sign assigns a value; two equals signs compare values.",
+      "Indexed arrays start with index 0.",
+    ],
+    testQuestion: "How does PHP mark a variable name?",
+    firstStep: "Try reading a simple variable assignment before changing the example.",
+  },
+  3: {
+    title: "HTML forms and safe output",
+    topic: "Collect input, validate it, and escape output",
+    minutes: 30,
+    hints: [
+      "A form control needs a name so submitted data can be identified.",
+      "Browser-side checks help users, but the server must validate submitted values.",
+      "In Drupal 7, check_plain() escapes plain text for HTML output.",
+    ],
+    testQuestion: "Why does server-side code still validate a form submission?",
+    firstStep: "Follow one submitted field from the browser to server-side validation.",
+  },
+  4: {
+    title: "SQL and safe data access",
+    topic: "Tables, queries, filtering, and parameterized values",
+    minutes: 30,
+    hints: [
+      "SELECT reads columns from a table.",
+      "WHERE narrows which rows match.",
+      "Use placeholders with Drupal 7 db_query(); never concatenate untrusted values into SQL.",
+    ],
+    testQuestion: "What keeps user input from becoming part of a SQL statement?",
+    firstStep: "Write the query shape first, then identify the value that belongs in a placeholder.",
   },
   8: {
     title: "Module anatomy",
@@ -154,7 +192,7 @@ const lessonDetails: Record<
 const initialMessages: ChatMessage[] = [
   {
     role: "mentor",
-    text: "This is a short first lesson about how a web page is requested. Read the three steps, ask me about anything unclear, then try the separate practice check if you want. Chat questions are not graded, and you can finish whenever you’re ready.",
+    text: "I’m here to help you understand the current lesson. Ask a question or request a simple example whenever you need one.",
   },
 ];
 
@@ -188,13 +226,15 @@ export default function LearningDashboard() {
   const [focusMode, setFocusMode] = useState(false);
   const [notice, setNotice] = useState("");
   const mentor = useMentorChat(initialMessages);
-  const detail = lessonDetails[activeDay];
+  const detail = lessonDetails[activeDay] ?? lessonDetails[1];
   const lessonFinished = learner.state?.lesson.status === "completed";
   const placementComplete = Boolean(learner.state?.placement);
   const handlePlacementComplete = useCallback(() => {
     void learner.refresh();
   }, [learner.refresh]);
-  const exerciseContext = `The learner is in the Day 1 web-request lesson's ${lessonFinished ? "finished" : "open Q&A"} phase. Answer their question directly in plain language. Do not turn ordinary questions into quizzes or ask follow-up questions by default. The separate practice check is controlled by the app, is ungraded, and does not change progress. ${lessonFinished ? "The learner has finished the lesson; answer only what they ask and do not restart or extend the lesson." : "The learner can choose when to try the separate practice check or finish."}`;
+  const exerciseContext = activeDay === 1
+    ? `The learner is in the Day 1 web-request lesson's ${lessonFinished ? "finished" : "open Q&A"} phase. Answer their question directly in plain language. Do not turn ordinary questions into quizzes or ask follow-up questions by default. The separate practice check is controlled by the app, is ungraded, and does not change progress. ${lessonFinished ? "The learner has finished the lesson; answer only what they ask and do not restart or extend the lesson." : "The learner can choose when to try the separate practice check or finish."}`
+    : `The learner is studying Day ${activeDay}: ${detail.title} (${detail.topic}). Be a patient mentor speaking to a junior developer: answer the question directly in plain language and use a small example when useful. Do not turn ordinary questions into quizzes or ask follow-up questions by default. Lessons and checkpoint grading are managed by the app; do not claim to record completion, grade answers, or unlock days.`;
 
   useEffect(() => {
     if (!focusMode) return;
@@ -204,6 +244,12 @@ export default function LearningDashboard() {
     window.addEventListener("keydown", leaveFocusMode);
     return () => window.removeEventListener("keydown", leaveFocusMode);
   }, [focusMode]);
+
+  useEffect(() => {
+    if (!learner.loading && learner.state && activeDay === 1 && learner.state.currentDay > 1) {
+      setActiveDay(Math.min(learner.state.currentDay, 4));
+    }
+  }, [activeDay, learner.loading, learner.state?.currentDay]);
 
   useEffect(() => {
     const lesson = learner.state?.lesson;
@@ -277,8 +323,7 @@ export default function LearningDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) return result.error ?? "Could not save lesson progress.";
+      await readApiResponse<{ started?: boolean; answer?: string; correct?: boolean; completed?: boolean }>(response);
       return "";
     } catch (caught) {
       return caught instanceof Error ? caught.message : "Could not save lesson progress.";
@@ -286,6 +331,10 @@ export default function LearningDashboard() {
   }
 
   function selectDay(day: number) {
+    if (day > (learner.state?.currentDay ?? 1)) {
+      setNotice(`Day ${day} is locked. Pass the previous day's checkpoint with at least 85% to unlock it.`);
+      return;
+    }
     setActiveDay(day);
     setSelectedRequestAnswer("");
     setRequestAnswerResult(null);
@@ -294,6 +343,20 @@ export default function LearningDashboard() {
       text: `${lessonDetails[day].topic}. Ask me about anything unclear, then choose if and when to try the separate practice check.`,
     }]);
     setNotice(`Day ${day} selected — your workspace is ready.`);
+  }
+
+  function continueToDay(day: number) {
+    if (day < 1 || day > 4) return;
+    setActiveDay(day);
+    setSelectedRequestAnswer("");
+    setRequestAnswerResult(null);
+    mentor.resetMessages([{
+      role: "mentor",
+      text: `${lessonDetails[day].topic}. Ask me about anything unclear, and I’ll explain it with a small example when useful.`,
+    }]);
+    setNotice(`Day ${day} unlocked — your workspace is ready.`);
+    void learner.refresh();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return (
@@ -310,7 +373,7 @@ export default function LearningDashboard() {
         <header className="topbar">
           <div className="breadcrumbs">
             <button className="icon-button menu-toggle" onClick={() => setMobileMenuOpen(true)} aria-label="Open navigation"><Menu size={19} /></button>
-            <span>Learning path</span><span className="crumb-slash">/</span>            <span className="crumb-current">Foundations check</span>
+            <span>Learning path</span><span className="crumb-slash">/</span>                        <span className="crumb-current">{detail.title}</span>
           </div>
           <div className="topbar-actions">
             {focusMode && (
@@ -329,9 +392,9 @@ export default function LearningDashboard() {
         <div className="dashboard-content">
           <div className="welcome-row">
             <div>
-              <div className="eyebrow"><span className="live-dot" /> {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date())} <span className="eyebrow-separator">/</span> DAY 01 OF 30</div>
-              <h1>Start with your foundations.</h1>
-              <p className="welcome-subtitle">A short explanation, optional practice, and a clear stopping point. No code required.</p>
+              <div className="eyebrow"><span className="live-dot" /> {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date())} <span className="eyebrow-separator">/</span> DAY {String(activeDay).padStart(2, "0")} OF 30</div>
+              <h1>{activeDay === 1 ? "Start with your foundations." : detail.title}</h1>
+              <p className="welcome-subtitle">{activeDay === 1 ? "A short explanation, optional practice, and a clear stopping point. No code required." : `${detail.topic}. Complete each short lesson, then pass the checkpoint to continue.`}</p>
             </div>
             <button
               className="focus-button"
@@ -349,7 +412,7 @@ export default function LearningDashboard() {
             </div>
           )}
 
-          {learner.loading && (
+          {learner.loading && activeDay === 1 && (
             <section className="placement-panel" aria-live="polite">Loading your saved learner record…</section>
           )}
           {!learner.loading && learner.error && (
@@ -357,15 +420,15 @@ export default function LearningDashboard() {
               {learner.error} Start PostgreSQL and apply the database migrations to load saved progress.
             </div>
           )}
-          {!learner.loading && !learner.error && (
+          {!learner.loading && !learner.error && activeDay === 1 && (
             <PlacementAssessment onComplete={handlePlacementComplete} />
           )}
 
-          <section className="summary-grid strict-scorecard" aria-label="Strict progress scorecard">
+          {activeDay === 1 && <section className="summary-grid strict-scorecard" aria-label="Strict progress scorecard">
             <article className="summary-card">
-              <span className="card-overline">EXERCISE PASS RATE</span>
-              <strong className="summary-number">—</strong>
-              <span className="summary-note">No graded attempts yet</span>
+              <span className="card-overline">DAY 1 CHECKPOINT</span>
+              <strong className="summary-number">{learner.state?.completedDays[1] ? `${learner.state.completedDays[1].score}%` : "—"}</strong>
+              <span className="summary-note">{learner.state?.completedDays[1] ? "Passed · Day 2 unlocked" : "85% required to unlock Day 2"}</span>
             </article>
             <article className="summary-card">
               <span className="card-overline">PLACEMENT SCORE</span>
@@ -396,7 +459,7 @@ export default function LearningDashboard() {
               <strong className="summary-number">{learner.state?.placement ? `Level ${learner.state.placement.recommendedLevel}` : "Pending"}</strong>
               <span className="summary-note">{learner.state?.placement?.recommendedLevelTitle ?? "Determined after placement"}</span>
             </article>
-          </section>
+          </section>}
 
           {!placementComplete && (
             <div className="placement-gate-note">
@@ -406,6 +469,8 @@ export default function LearningDashboard() {
           {placementComplete && (
           <div className="content-grid">
             <div className="lesson-column">
+              {activeDay === 1 ? (
+                <>
               <section className="mission-card">
                 <div className="mission-topline">
                   <div className="mission-tag"><span /> DAY {activeDay} <span className="tag-divider">/</span> FOUNDATIONS</div>
@@ -476,35 +541,44 @@ export default function LearningDashboard() {
                   <Link className="footer-link" href="/guide">How progression works <ArrowRight size={14} /></Link>
                 </div>
               </section>
+              <DayCurriculum
+                day={1}
+                onContinue={continueToDay}
+                onProgress={() => void learner.refresh()}
+              />
 
               <section className="section-block">
                 <div className="section-heading">
-                  <div><h2>30-day route</h2><span className="map-subtitle">Day 1 foundations · later lessons remain a preview</span></div>
+                  <div><h2>Learning route</h2><span className="map-subtitle">Days 1–4 · later curriculum is coming next</span></div>
                   <Link className="subtle-link" href="/skills">Readiness details <ArrowRight size={14} /></Link>
                 </div>
                 <div className="curriculum-card">
                   <div className="curriculum-top">
                     <div className="curriculum-level-icon"><Code2 size={17} /></div>
                     <div className="curriculum-title"><span>LEVEL 00 <b>·</b> DAY 01</span><strong>Foundations intro</strong></div>
-                    <div className="level-progress"><span>Placement complete · later lessons are a preview</span><div className="level-track"><i /></div></div>
+                    <div className="level-progress"><span>85% checkpoint required to advance</span><div className="level-track"><i /></div></div>
                     <button className="icon-button card-menu" aria-label="Curriculum options"><MoreHorizontal size={18} /></button>
                   </div>
                   <div className="curriculum-days">
-                    {learningDays.slice(0, 5).map((lesson, index) => (
+                    {learningDays.map((lesson, index) => {
+                      const completed = Boolean(learner.state?.completedDays[lesson.day]);
+                      const locked = lesson.day > (learner.state?.currentDay ?? 1);
+                      const state = completed ? "done" : locked ? "locked" : "current";
+                      return (
                       <button
                         key={lesson.day}
-                        className={`curriculum-day ${lesson.state} ${activeDay === lesson.day ? "selected" : ""}`}
-                        onClick={() => lesson.state !== "locked" && lesson.state !== "upcoming" && selectDay(lesson.day)}
-                        disabled={lesson.state === "locked" || lesson.state === "upcoming"}
+                        className={`curriculum-day ${state} ${activeDay === lesson.day ? "selected" : ""}`}
+                        onClick={() => selectDay(lesson.day)}
+                        disabled={locked}
                         aria-label={`Day ${lesson.day}: ${lesson.title}`}
                       >
-                        <span className="curriculum-node">{lesson.state === "done" ? <Check size={13} /> : lesson.state === "locked" ? <LockKeyhole size={12} /> : lesson.day}</span>
+                        <span className="curriculum-node">{completed ? <Check size={13} /> : locked ? <LockKeyhole size={12} /> : lesson.day}</span>
                         <span className="curriculum-day-label">DAY {lesson.day}</span>
                         <span className="curriculum-day-name">{lesson.title}</span>
-                        {index < 4 && <span className="node-line" />}
+                        {index < learningDays.length - 1 && <span className="node-line" />}
                       </button>
-                    ))}
-                    <button className="curriculum-more" onClick={() => setNotice("Only Day 1 has a saved lesson. Progression rules and later lessons are not implemented yet.")}><ArrowRight size={16} /><span>View all<br />30 days</span></button>
+                    )})}
+                    <button className="curriculum-more" onClick={() => setNotice("Days 5–30 have not been written yet.")}><ArrowRight size={16} /><span>More days<br />coming soon</span></button>
                   </div>
                 </div>
               </section>
@@ -521,6 +595,14 @@ export default function LearningDashboard() {
                   <Link className="subtle-link" href="/guide">How progress works <ArrowRight size={13} /></Link>
                 </section>
               </div>
+                </>
+              ) : (
+                <DayCurriculum
+                  day={activeDay}
+                  onContinue={continueToDay}
+                  onProgress={() => void learner.refresh()}
+                />
+              )}
             </div>
 
             <aside className="mentor-panel" aria-label="Mentor and lesson progress">
@@ -564,23 +646,23 @@ export default function LearningDashboard() {
                   disabled={mentor.isSending}
                 />
                 <div className="composer-bottom">
-                  <span><span className="composer-status" /> Beginner-friendly · Day 1</span>
+                  <span><span className="composer-status" /> Beginner-friendly · Day {activeDay}</span>
                   <button className="send-button" type="submit" aria-label="Send message" disabled={!draft.trim() || mentor.isSending}><Send size={15} /></button>
                 </div>
               </form>
               <div className="mentor-footnote"><LockKeyhole size={12} /> Chat does not record assessment results or unlock lessons.</div>
 
-              <div className="today-progress">
+              {activeDay === 1 && <div className="today-progress">
                 <div className="today-progress-head"><strong>Today’s checklist</strong><button className="text-icon" aria-label="Checklist options"><MoreHorizontal size={16} /></button></div>
                 <div className="checklist-item"><span className={lessonFinished ? "check-done" : "check-empty"} /><div><strong>Read the web-request lesson</strong><small>{lessonFinished ? "Completed · saved" : "In progress · 5 min"}</small></div><ArrowRight size={14} /></div>
                 <div className="checklist-item"><span className={learner.state?.lesson.practiceAnswer ? "check-done" : "check-empty"} /><div><strong>Try the sequence practice</strong><small>{learner.state?.lesson.practiceAnswer ? "Attempt saved · not graded" : "Optional · not graded"}</small></div><ArrowRight size={14} /></div>
                 <div className="checklist-item"><span className={placementComplete ? "check-done" : "check-empty"} /><div><strong>{placementComplete ? "Placement assessment" : "Take the placement assessment"}</strong><small>{placementComplete ? "Complete · results saved" : "20-question check"}</small></div>{placementComplete ? <Check size={14} /> : <LockKeyhole size={14} />}</div>
-                <button className="checklist-link" onClick={() => setNotice("Placement and Day 1 progress are saved in PostgreSQL. Chat history, formal grading, and later-level unlocks are not implemented.")}>Progress tracking status <ArrowRight size={13} /></button>
-              </div>
+                <button className="checklist-link" onClick={() => setNotice("Placement, lesson completion, checkpoint answers, scores, and day unlocks are saved in PostgreSQL. Mentor chat history is not saved.")}>Progress tracking status <ArrowRight size={13} /></button>
+              </div>}
             </aside>
           </div>
           )}
-          <footer className="page-footer"><span>Placement and Day 1 completion are saved. Chat, formal grading, and level unlocks are not.</span><span>DRUPAL 7 TRACK <b>·</b> DAY 01</span></footer>
+          <footer className="page-footer"><span>Placement, lessons, checkpoint scores, and day unlocks are saved. Mentor chat is not persisted.</span><span>DRUPAL 7 TRACK <b>·</b> DAY {String(activeDay).padStart(2, "0")}</span></footer>
         </div>
       </section>
     </main>

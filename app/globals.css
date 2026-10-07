@@ -61,6 +61,107 @@ button:disabled {
     var(--bg);
 }
 
+.day-course {
+  display: grid;
+  gap: 18px;
+  margin-top: 2rem;
+}
+
+.day-course-header,
+.day-lesson,
+.day-checkpoint {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 20px;
+}
+
+.day-course-header h2,
+.day-lesson h3,
+.day-checkpoint h3 {
+  margin-top: 0;
+}
+
+.day-lesson-list {
+  display: grid;
+  gap: 12px;
+}
+
+.day-lesson {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.day-lesson-number {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--mint);
+  font-size: 11px;
+}
+
+.day-lesson.completed .day-lesson-number {
+  border-color: var(--mint-dim);
+}
+
+.day-lesson-body > p {
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.day-lesson-body pre {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  padding: 12px;
+  color: var(--mint);
+}
+
+.day-lesson-objective,
+.day-lesson-takeaway {
+  color: var(--muted);
+}
+
+.day-course-notice,
+.day-gate-passed {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-raised);
+  padding: 12px;
+  line-height: 1.5;
+}
+
+.day-gate-passed {
+  flex-wrap: wrap;
+  color: var(--mint);
+}
+
+.day-checkpoint {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .day-lesson {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .day-course-header,
+  .day-checkpoint {
+    padding: 16px;
+  }
+}
+
 .sidebar {
   position: sticky;
   top: 0;

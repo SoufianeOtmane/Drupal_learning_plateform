@@ -39,7 +39,7 @@ const pageInfo: Record<WorkspaceView, { eyebrow: string; title: string; descript
   overview: {
     eyebrow: "YOUR LEARNING AT A GLANCE",
     title: "Overview",
-    description: "Your placement result and Day 1 lesson completion are saved to your learner record.",
+    description: "Your placement result, lesson progress, checkpoint scores, and unlocked day are saved to your learner record.",
   },
   practice: {
     eyebrow: "HANDS-ON TRAINING",
@@ -83,6 +83,8 @@ function OverviewContent({
 }) {
   const placement = state?.placement;
   const lessonFinished = state?.lesson.status === "completed";
+  const currentDay = Math.min(state?.currentDay ?? 1, 4);
+  const currentDayPassed = Boolean(state?.completedDays[currentDay]);
 
   return (
     <>
@@ -91,8 +93,8 @@ function OverviewContent({
         <article className="workspace-stat">
           <div className="workspace-stat-icon mint-stat"><BookOpen size={17} /></div>
           <span className="card-overline">CURRENT STEP</span>
-          <strong>Day 01</strong>
-          <span className="workspace-stat-note">{loading ? "Loading learner record" : lessonFinished ? "Day 1 lesson completed" : placement ? "Placement complete · lesson not finished" : "Placement required before the lesson"}</span>
+          <strong>Day {String(currentDay).padStart(2, "0")}</strong>
+          <span className="workspace-stat-note">{loading ? "Loading learner record" : !placement ? "Placement required before learning" : currentDayPassed ? "Available curriculum complete" : `Unlocked · ${currentDay} of 4`}</span>
         </article>
         <article className="workspace-stat">
           <div className="workspace-stat-icon amber-stat"><Zap size={17} /></div>
@@ -104,7 +106,7 @@ function OverviewContent({
           <div className="workspace-stat-icon orange-stat"><Flame size={17} /></div>
           <span className="card-overline">CURRENT STREAK</span>
           <strong>Not tracked</strong>
-          <span className="workspace-stat-note">Progress storage is not connected</span>
+          <span className="workspace-stat-note">Day progress is saved in PostgreSQL</span>
         </article>
         <article className="workspace-stat">
           <div className="workspace-stat-icon violet-stat"><Target size={17} /></div>
@@ -115,18 +117,18 @@ function OverviewContent({
       </section>
       <section className="workspace-grid">
         <article className="workspace-panel overview-mission">
-          <div className="section-kicker">DAY 1 · START HERE</div>
-          <h2>{placement ? "Placement complete" : "Start with placement"}</h2>
-          <p>{placement ? placement.recommendationReason : "Answer 20 curated questions across PHP, web basics, SQL, Git, the command line, and Drupal 7. No code or prior Drupal knowledge is required."}</p>
+          <div className="section-kicker">{placement ? `DAY ${currentDay} · ${currentDay === 1 ? "START HERE" : "UNLOCKED"}` : "DAY 1 · START HERE"}</div>
+          <h2>{!placement ? "Start with placement" : currentDayPassed ? `Day ${currentDay} checkpoint passed` : `Day ${currentDay} is ready`}</h2>
+          <p>{placement ? currentDayPassed ? "You passed this day. Revisit its lessons or review your checkpoint in the learning path." : "Complete the ordered lessons, then score at least 85% on the day checkpoint to continue." : "Answer 20 curated questions across PHP, web basics, SQL, Git, the command line, and Drupal 7. No code or prior Drupal knowledge is required."}</p>
           <div className="workspace-meta"><span><AlarmClock size={14} /> About 10–15 min</span><span><FlaskConical size={14} /> Deterministic scoring</span></div>
-          <Link className="primary-button" href="/learning"><Play size={14} fill="currentColor" /> {placement ? "Continue Day 1 lesson" : "Take placement check"} <ArrowRight size={15} /></Link>
+          <Link className="primary-button" href="/learning"><Play size={14} fill="currentColor" /> {placement ? `Open Day ${currentDay}` : "Take placement check"} <ArrowRight size={15} /></Link>
         </article>
         <article className="workspace-panel">
-          <div className="section-kicker">FIRST-DAY CHECKLIST</div>
-          <h2>{lessonFinished ? "Day 1 complete" : "Your next steps"}</h2>
+          <div className="section-kicker">STRICT DAY GATE</div>
+          <h2>{currentDayPassed && currentDay === 4 ? "Curriculum complete" : "Your next steps"}</h2>
           <div className="workspace-check"><span className={placement ? "check-done" : "check-empty"} /><div><strong>Complete placement check</strong><small>{placement ? "Saved to PostgreSQL" : "20 questions · answers save as you go"}</small></div></div>
-          <div className="workspace-check"><span className={lessonFinished ? "check-done" : "check-empty"} /><div><strong>Finish the web-request lesson</strong><small>{lessonFinished ? "Completion saved" : placement ? "Ready in the learning path" : "Available after placement"}</small></div></div>
-          <div className="workspace-check"><span className="check-empty" /><div><strong>Continue into Drupal 7</strong><small>Later lessons and unlock rules are not implemented yet</small></div></div>
+          <div className="workspace-check"><span className={currentDayPassed ? "check-done" : "check-empty"} /><div><strong>Pass the Day {currentDay} checkpoint</strong><small>{currentDayPassed ? `Passed · ${state?.completedDays[currentDay]?.score}%` : "Complete this day's lessons, then earn at least 85%"}</small></div></div>
+          <div className="workspace-check"><span className={currentDayPassed ? "check-done" : "check-empty"} /><div><strong>{currentDayPassed ? currentDay === 4 ? "Review your completed days" : `Day ${currentDay + 1} unlocked` : `Complete Day ${currentDay} lessons`}</strong><small>{currentDayPassed && currentDay === 4 ? "Days 1–4 are available to revisit" : currentDayPassed ? "Continue in the learning path" : currentDay === 1 && lessonFinished ? "Lesson complete · checkpoint still required" : "Finish every lesson in order before the checkpoint"}</small></div></div>
         </article>
       </section>
       <div className="workspace-shortcuts">

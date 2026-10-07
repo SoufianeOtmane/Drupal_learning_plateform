@@ -25,9 +25,12 @@ import type { LearnerState } from "@/lib/learner-types";
 export const learningDays: ReadonlyArray<{
   day: number;
   title: string;
-  state: "done" | "current" | "upcoming" | "locked";
+  topic: string;
 }> = [
-  { day: 1, title: "Web request basics", state: "current" },
+  { day: 1, title: "Web request basics", topic: "Browser requests and server responses" },
+  { day: 2, title: "PHP building blocks", topic: "Variables, values, and arrays" },
+  { day: 3, title: "HTML forms and safe output", topic: "Input validation and XSS prevention" },
+  { day: 4, title: "SQL and safe data access", topic: "Tables, queries, and parameters" },
 ] as const;
 
 const navigation = [
@@ -56,6 +59,9 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const currentDay = Math.min(learnerState?.currentDay ?? 1, learningDays.length);
+  const completedDays = learnerState?.completedDays ?? {};
+  const selectedDay = learningDays[activeDay - 1] ?? learningDays[0];
 
   return (
     <>
@@ -113,12 +119,14 @@ export default function AppSidebar({
         </div>
         <div className="path-level">
           <span className="level-number">00</span>
-          <div><strong>Foundations</strong><span>Day 1 · web request basics</span></div>
+          <div><strong>Foundations</strong><span>Day {activeDay} · {selectedDay.title.toLowerCase()}</span></div>
           <ChevronDown size={14} />
         </div>
         <div className="day-list" aria-label="Learning path days">
           {learningDays.map((lesson) => {
-            const locked = lesson.state === "locked" || lesson.state === "upcoming";
+            const state =
+              completedDays[lesson.day] ? "done" : lesson.day === currentDay ? "current" : "locked";
+            const locked = lesson.day > currentDay;
             return (
               <button
                 className={`day-item ${activeDay === lesson.day ? "day-active" : ""}`}
@@ -132,11 +140,11 @@ export default function AppSidebar({
                 disabled={locked}
                 aria-current={activeDay === lesson.day ? "step" : undefined}
               >
-                <span className={`day-marker ${lesson.state}`}>
-                  {lesson.state === "done" ? <Check size={12} /> : lesson.state === "locked" ? <LockKeyhole size={11} /> : lesson.day}
+                <span className={`day-marker ${state}`}>
+                  {state === "done" ? <Check size={12} /> : state === "locked" ? <LockKeyhole size={11} /> : lesson.day}
                 </span>
                 <span className="day-title">{lesson.title}</span>
-                {lesson.state === "current" && <span className="day-now">NOW</span>}
+                {state === "current" && <span className="day-now">NOW</span>}
               </button>
             );
           })}

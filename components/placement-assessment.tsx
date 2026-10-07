@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, LoaderCircle, RotateCcw } from "lucide-react";
 import type { PlacementSkill } from "@/lib/learner-types";
+import { readApiResponse } from "@/lib/read-api-response";
 
 type Question = {
   id: string;
@@ -40,12 +41,6 @@ const skillLabels: Record<PlacementSkill, string> = {
   drupal: "Drupal 7",
 };
 
-async function readPayload<T>(response: Response): Promise<T> {
-  const payload = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error ?? "The request could not be completed.");
-  return payload;
-}
-
 export default function PlacementAssessment({
   onComplete,
 }: {
@@ -61,7 +56,7 @@ export default function PlacementAssessment({
   useEffect(() => {
     let active = true;
     fetch("/api/placement")
-      .then(readPayload<PlacementResponse>)
+      .then((response) => readApiResponse<PlacementResponse>(response))
       .then((payload) => {
         if (!active) return;
         setQuestions(payload.questions);
@@ -89,7 +84,7 @@ export default function PlacementAssessment({
     setBusy(true);
     setError("");
     try {
-      const payload = await readPayload<{ attempt: Attempt }>(
+      const payload = await readApiResponse<{ attempt: Attempt }>(
         await fetch("/api/placement", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -110,7 +105,7 @@ export default function PlacementAssessment({
     setBusy(true);
     setError("");
     try {
-      const payload = await readPayload<{ answers: Record<string, string> }>(
+      const payload = await readApiResponse<{ answers: Record<string, string> }>(
         await fetch("/api/placement", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -135,7 +130,7 @@ export default function PlacementAssessment({
     setBusy(true);
     setError("");
     try {
-      const payload = await readPayload<{ attempt: Attempt }>(
+      const payload = await readApiResponse<{ attempt: Attempt }>(
         await fetch("/api/placement", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -196,7 +191,7 @@ export default function PlacementAssessment({
             ))}
           </div>
           <p className="placement-disclaimer">
-            The recommendation is advisory. It does not certify mastery or unlock later lessons; progression rules will be added separately.
+            This recommendation is advisory, not a mastery grade or an unlock. Complete each day and pass its checkpoint to move forward.
           </p>
           <p className="placement-disclaimer">
             Rule: below 60% across PHP, web, SQL, and Git/CLI recommends foundations; at 60% or above, Drupal below 60% recommends site building; 60% or above in both recommends module-development lessons.

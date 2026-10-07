@@ -31,7 +31,7 @@ const learningSteps = [
   {
     number: "02",
     title: "Learn in small steps",
-    text: "After placement, read the bounded Day 1 web-request lesson. Its completion and optional practice answer are saved; chat questions are not graded.",
+    text: "Days 1–4 have short, ordered lessons saved to PostgreSQL. Finish each lesson before starting the next one in that day.",
     href: "/learning",
     link: "Open Day 1 web-request lesson",
     icon: Code2,
@@ -46,16 +46,16 @@ const learningSteps = [
   },
   {
     number: "04",
-    title: "Run, submit, and review",
-    text: "The Day 1 sequence check is separate and ungraded. Code execution and formal grading are planned, not live.",
+    title: "Pass the day checkpoint",
+    text: "After completing a day's lessons, submit its ten-question checkpoint. The server grades it; a score of at least 85% unlocks the next day.",
     href: "/practice",
     link: "Browse Practice lab",
     icon: FlaskConical,
   },
   {
     number: "05",
-    title: "Clear the gate before advancing",
-    text: "You explicitly finish Day 1 when ready. Completion is saved, but later lessons, deterministic coding-exercise grading, and automatic progression are not implemented. Gemini cannot pass or unlock anything.",
+    title: "Keep progressing deliberately",
+    text: "Days unlock sequentially through Day 4. Placement scores are advisory, and Gemini cannot grade checkpoints, record completion, or unlock a day. Coding exercises and Days 5–30 are future work.",
     href: "/skills",
     link: "Check your Skill profile",
     icon: ShieldCheck,
@@ -64,12 +64,13 @@ const learningSteps = [
 
 const backendTasks = [
   "Chat API: TypeScript route, server-held Gemini key, input limits, streaming, and provider error reporting.",
-  "Implemented: PostgreSQL learner profile, placement attempts, answer-by-answer persistence, assessment results, and Day 1 lesson progress.",
+  "Implemented: PostgreSQL learner profile, placement attempts, answer-by-answer persistence, and saved progress across Days 1–4.",
   "Implemented: curated 20-question placement test with private answer keys, deterministic category scoring, and advisory start-level recommendations.",
+  "Implemented: three short lessons per day for Days 2–4, server-graded day checkpoints, and a strict 85% sequential unlock gate.",
   "Implemented: Docker Compose app/database stack, persistent database volume, health checks, and startup migrations.",
-  "Curriculum: versioned lesson and exercise definitions, prerequisites, strict rubrics, and level-gate rules.",
-  "Grader: run functional checks, coding standards, and security checks; calculate scores deterministically.",
-  "Progression service: persist grader results, enforce prerequisites and level gates, and never accept an AI chat claim as a pass.",
+  "Future curriculum: write and review Days 5–30, then expand prerequisites and level-gate rules.",
+  "Future grader: run coding exercises through functional, standards, and security checks with deterministic scores.",
+  "Future progression: use coding-exercise results alongside the existing day checkpoint gates.",
   "Sandbox worker: isolated Docker images for Drupal 7, PHP, and MariaDB; no network, strict resource limits, timed runs.",
   "Planner and reviews: daily plan, mastery updates, spaced repetition, attempt caps, and recovery scheduling.",
   "Security and operations: secret management, rate limits, backups, structured logs, and sandbox audit trails.",
@@ -131,7 +132,7 @@ export default function ProjectGuide() {
               <li><Check size={14} /><span>Keep chat questions separate from the exercise; make practice clearly labeled with an objective and a check/submit action.</span></li>
               <li><Check size={14} /><span>Stop when the learner finishes. If they struggle during practice, explain differently; do not pretend chat answers were graded.</span></li>
             </ol>
-            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Placement and Day 1 progress are stored in PostgreSQL; the practice check is ungraded. Formal coding-exercise grading and unlocks are not implemented yet.</span></div>
+            <div className="guide-security-note"><ShieldCheck size={16} /><span>Gemini is a tutor, not the grader. Placement, lessons, checkpoint answers, scores, and day unlocks are persisted in PostgreSQL. Checkpoints are multiple-choice; executable coding exercises are not implemented yet.</span></div>
           </section>
 
           <section className="guide-backend">
