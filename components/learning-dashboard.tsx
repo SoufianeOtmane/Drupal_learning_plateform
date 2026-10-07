@@ -8,18 +8,17 @@ import { useMentorChat } from "@/hooks/use-mentor-chat";
 import {
   AlarmClock,
   ArrowRight,
-  Bot,
   Check,
+  CheckCircle2,
+  Bot,
   CircleHelp,
   Code2,
   Flame,
   FlaskConical,
-  Lightbulb,
   LockKeyhole,
   Menu,
   MessageSquareText,
   MoreHorizontal,
-  Play,
   Search,
   Command,
   Send,
@@ -34,6 +33,12 @@ type ChatMessage = {
   text: string;
 };
 
+const webRequestOptions = [
+  { id: "wrong-order", text: "The server sends a page, then the browser requests its data." },
+  { id: "right-order", text: "The browser requests a page, the server runs PHP, then returns HTML." },
+  { id: "static-only", text: "The browser reads PHP files directly from the server." },
+];
+
 const lessonDetails: Record<
   number,
   {
@@ -46,16 +51,16 @@ const lessonDetails: Record<
   }
 > = {
   1: {
-    title: "Foundations check",
-    topic: "PHP, web basics, SQL, Git, and command-line foundations",
+    title: "Web request basics",
+    topic: "How a browser request reaches a server and becomes a page",
     minutes: 30,
     hints: [
       "Start with what you already know: PHP, HTML/CSS, SQL, Git, or the terminal.",
       "You do not need to write a Drupal module yet. We will check one prerequisite at a time.",
       "Pick one unfamiliar term and I will explain it with a small example before asking you to try anything.",
     ],
-    testQuestion: "Which of PHP, HTML/CSS, SQL, Git, and command-line tools have you used before?",
-    firstStep: "Tell me what you have and have not used before. We will start from your current level, one small concept at a time.",
+    testQuestion: "Which happens first: the browser requests the page, or the server sends it?",
+    firstStep: "A browser requests a page; the server processes it and sends a response back.",
   },
   8: {
     title: "Module anatomy",
@@ -146,7 +151,7 @@ const lessonDetails: Record<
 const initialMessages: ChatMessage[] = [
   {
     role: "mentor",
-    text: "Welcome. This is your first day, so I will not assume you know Drupal or require code immediately. Tell me what you have used before—PHP, HTML/CSS, SQL, Git, or the terminal—and we will build from there.",
+    text: "This is a short first lesson about how a web page is requested. Read the three steps, ask me about anything unclear, then try the separate practice check if you want. Chat questions are not graded, and you can finish whenever you’re ready.",
   },
 ];
 
@@ -159,14 +164,15 @@ function SkillBars() {
 export default function LearningDashboard() {
   const [activeDay, setActiveDay] = useState(1);
   const [draft, setDraft] = useState("");
-  const [hintCount, setHintCount] = useState(0);
+  const [selectedRequestAnswer, setSelectedRequestAnswer] = useState("");
+  const [requestAnswerResult, setRequestAnswerResult] = useState<"correct" | "retry" | null>(null);
+  const [lessonFinished, setLessonFinished] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [attemptCode, setAttemptCode] = useState("");
-  const [attemptSaved, setAttemptSaved] = useState(false);
   const [notice, setNotice] = useState("");
   const mentor = useMentorChat(initialMessages);
   const detail = lessonDetails[activeDay];
+  const exerciseContext = `The learner is in the Day 1 web-request lesson's ${lessonFinished ? "finished" : "open Q&A"} phase. Answer their question directly in plain language. Do not turn ordinary questions into quizzes or ask follow-up questions by default. The separate practice check is controlled by the app, is ungraded, and does not change progress. ${lessonFinished ? "The learner has finished the lesson; answer only what they ask and do not restart or extend the lesson." : "The learner can choose when to try the separate practice check or finish."}`;
 
   useEffect(() => {
     if (!focusMode) return;
@@ -180,23 +186,7 @@ export default function LearningDashboard() {
   function sendMessage(text: string) {
     const cleanText = text.trim();
     if (!cleanText) return;
-    if (cleanText.toLowerCase().includes("hint")) {
-      if (hintCount >= 3) {
-        setNotice("You have used the 3 quick hints this session. Ask the mentor to explain the idea differently.");
-        return;
-      }
-      const nextHint = hintCount + 1;
-      setHintCount(nextHint);
-      void mentor.sendMessage(
-        `${cleanText}. This is hint ${nextHint} of 3 in this page session. Keep it beginner-friendly and do not demand code before explaining the prerequisite.`,
-        `Day 1 foundations check. Topic: ${detail.topic}. No placement result, exercise grade, or saved learner history is available yet.`,
-      );
-    } else {
-      void mentor.sendMessage(
-        cleanText,
-        `Day 1 foundations check. Topic: ${detail.topic}. No placement result, exercise grade, or saved learner history is available yet.`,
-      );
-    }
+    void mentor.sendMessage(cleanText, exerciseContext);
     setDraft("");
   }
 
@@ -205,23 +195,34 @@ export default function LearningDashboard() {
     sendMessage(draft);
   }
 
-  function handleQuickAction(action: string) {
-    if (action === "Hint" && hintCount >= 3) {
-      setNotice("You have used the 3 quick hints this session. Ask the mentor to explain the idea differently.");
+  function checkWebRequestAnswer() {
+    if (!selectedRequestAnswer) {
+      setNotice("Choose the sequence you think is correct, then check your answer.");
       return;
     }
-    sendMessage(action === "Hint" ? "Give me a hint" : action);
+    const correct = selectedRequestAnswer === "right-order";
+    setRequestAnswerResult(correct ? "correct" : "retry");
+    setNotice(
+      correct
+        ? "Correct. You can finish this mini-lesson now; this practice check is not a grade."
+        : "Not quite. Remember: the browser asks first; the server does the PHP work.",
+    );
+  }
+
+  function finishLesson() {
+    setLessonFinished(true);
+    setNotice("Mini-lesson finished. Your practice check is not saved and does not unlock curriculum progress.");
   }
 
   function selectDay(day: number) {
     setActiveDay(day);
-    setHintCount(0);
-    mentor.resetMessages([
-      {
-        role: "mentor",
-        text: `${lessonDetails[day].topic}. ${lessonDetails[day].firstStep}`,
-      },
-    ]);
+    setSelectedRequestAnswer("");
+    setRequestAnswerResult(null);
+    setLessonFinished(false);
+    mentor.resetMessages([{
+      role: "mentor",
+      text: `${lessonDetails[day].topic}. Ask me about anything unclear, then choose if and when to try the separate practice check.`,
+    }]);
     setNotice(`Day ${day} selected — your workspace is ready.`);
   }
 
@@ -259,7 +260,7 @@ export default function LearningDashboard() {
             <div>
               <div className="eyebrow"><span className="live-dot" /> {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date())} <span className="eyebrow-separator">/</span> DAY 01 OF 30</div>
               <h1>Start with your foundations.</h1>
-              <p className="welcome-subtitle">Day 1 is a placement check—not a Drupal coding test. We will establish what you know before setting the pace.</p>
+              <p className="welcome-subtitle">A short explanation, optional practice, and a clear stopping point. No code required.</p>
             </div>
             <button
               className="focus-button"
@@ -309,46 +310,80 @@ export default function LearningDashboard() {
                 </div>
                 <div className="mission-main">
                   <div className="mission-copy">
-                    <h2>Find your starting point</h2>
-                    <p>Check your comfort with PHP, web basics, SQL, Git, and the command line. No prior Drupal knowledge is expected.</p>
+                    <h2>How a web request becomes a page</h2>
+                    <p>When you open a page, the browser asks a server for it. Drupal runs on that server and builds the response.</p>
+                    <ol className="lesson-flow-steps">
+                      <li><strong>Browser</strong><span>Sends a request for a URL.</span></li>
+                      <li><strong>Server</strong><span>Runs PHP and Drupal; it may read from the database.</span></li>
+                      <li><strong>Browser</strong><span>Receives HTML and displays the page.</span></li>
+                    </ol>
                     <div className="mission-meta">
-                      <span><AlarmClock size={14} /> 20–30 min</span><i />
-                      <span><FlaskConical size={14} /> Placement check</span><i />
-                      <span><ShieldCheck size={14} /> Not graded yet</span>
+                      <span><AlarmClock size={14} /> 5 min</span><i />
+                      <span><FlaskConical size={14} /> One practice check</span><i />
+                      <span><ShieldCheck size={14} /> Not graded</span>
                     </div>
-                    <div className="mission-gate"><LockKeyhole size={14} /><span>Starting level is set from your placement results.</span></div>
+                    <div className="mission-gate"><LockKeyhole size={14} /><span>Read, ask questions, practise if ready, then finish. No pressure to write code.</span></div>
                   </div>
-                  <div className="exercise-editor">
-                    <div className="editor-topbar"><span><Code2 size={13} /> learning-notes.txt</span><span className="editor-draft">OPTIONAL NOTES</span></div>
-                    <div className="editor-body">
-                      <div className="line-numbers" aria-hidden="true">{attemptCode.split("\n").map((_, index) => <span key={index}>{index + 1}</span>)}</div>
-                      <textarea aria-label="Optional learning notes" placeholder="Write a question or note here. You do not need to write code to start." spellCheck={false} value={attemptCode} onChange={(event) => { setAttemptCode(event.target.value); setAttemptSaved(false); }} />
+                  <div className="lesson-practice-card">
+                    <div className="lesson-practice-top">
+                      <div><span className="section-kicker">OPTIONAL PRACTICE · NOT A GRADE</span><h3>Choose the right sequence</h3></div>
+                      {requestAnswerResult === "correct" && <CheckCircle2 size={19} aria-label="Correct answer" />}
                     </div>
-                    <div className="editor-footer">
-                      <span><span className="offline-dot" /> Sandbox unavailable</span>
-                      <button className="primary-button" onClick={() => { setAttemptSaved(true); setNotice("Notes are only held in this page session; saving and grading are not connected yet."); }}>
-                        <Play size={13} fill="currentColor" /> Keep notes
+                    <p>Which statement best describes a basic PHP page request?</p>
+                    <div className="lesson-answer-options" role="radiogroup" aria-label="Choose the page request sequence">
+                      {webRequestOptions.map((option) => (
+                        <label
+                          className={`lesson-answer-option ${selectedRequestAnswer === option.id ? "selected" : ""}`}
+                          key={option.id}
+                        >
+                          <input
+                            type="radio"
+                            name="web-request-sequence"
+                            value={option.id}
+                            checked={selectedRequestAnswer === option.id}
+                            onChange={() => {
+                              setSelectedRequestAnswer(option.id);
+                              setRequestAnswerResult(null);
+                            }}
+                          />
+                          <span className="lesson-answer-marker" aria-hidden="true" />
+                          <span>{option.text}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {requestAnswerResult === "correct" && (
+                      <p className="lesson-answer-feedback correct">That’s right: the browser requests; the server runs PHP and returns HTML.</p>
+                    )}
+                    {requestAnswerResult === "retry" && (
+                      <p className="lesson-answer-feedback">Try again, or ask the mentor to explain the sequence. This is practice only.</p>
+                    )}
+                    <div className="lesson-practice-actions">
+                      <button className="primary-button" onClick={checkWebRequestAnswer} disabled={requestAnswerResult === "correct"}>
+                        <Check size={14} /> Check answer
+                      </button>
+                      <button className="lesson-finish-button" onClick={finishLesson} disabled={lessonFinished}>
+                        {lessonFinished ? "Finished" : "Finish lesson"}
                       </button>
                     </div>
-                    {attemptSaved && <div className="editor-feedback" role="status">Notes held for this session · Not saved · Not graded</div>}
+                    {lessonFinished && <p className="lesson-finished-note" role="status">You finished this mini-lesson. No grade or curriculum progress was recorded.</p>}
                   </div>
                 </div>
                 <div className="mission-footer">
-                  <div className="footer-progress"><span>ASSESSMENT STATUS</span><strong>Placement questions and automatic grading are not connected yet.</strong></div>
-                  <Link className="footer-link" href="/practice">More exercises <ArrowRight size={14} /></Link>
+                  <div className="footer-progress"><span>LESSON FLOW</span><strong>Read → ask freely → optional practice → finish when ready.</strong></div>
+                  <Link className="footer-link" href="/guide">How progression works <ArrowRight size={14} /></Link>
                 </div>
               </section>
 
               <section className="section-block">
                 <div className="section-heading">
-                  <div><h2>30-day route</h2><span className="map-subtitle">Level 0 · placement check · starting point not assessed</span></div>
+                  <div><h2>30-day route</h2><span className="map-subtitle">Day 1 foundations · placement is not implemented yet</span></div>
                   <Link className="subtle-link" href="/skills">Readiness details <ArrowRight size={14} /></Link>
                 </div>
                 <div className="curriculum-card">
                   <div className="curriculum-top">
                     <div className="curriculum-level-icon"><Code2 size={17} /></div>
-                    <div className="curriculum-title"><span>LEVEL 00 <b>·</b> DAY 01</span><strong>Foundations check</strong></div>
-                    <div className="level-progress"><span>Placement check not implemented yet</span><div className="level-track"><i /></div></div>
+                    <div className="curriculum-title"><span>LEVEL 00 <b>·</b> DAY 01</span><strong>Foundations intro</strong></div>
+                    <div className="level-progress"><span>Lesson preview · no placement assessment</span><div className="level-track"><i /></div></div>
                     <button className="icon-button card-menu" aria-label="Curriculum options"><MoreHorizontal size={18} /></button>
                   </div>
                   <div className="curriculum-days">
@@ -389,11 +424,11 @@ export default function LearningDashboard() {
               <div className="mentor-header">
                 <div className="mentor-heading">
                   <div className="mentor-avatar"><Bot size={18} /><span /></div>
-                  <div><strong>Your mentor</strong><span><i /> Strict mode · Online</span></div>
+                  <div><strong>Your mentor</strong><span><i /> Learning mode · Online</span></div>
                 </div>
                 <button className="text-icon" aria-label="Mentor options"><MoreHorizontal size={19} /></button>
               </div>
-              <div className="mentor-rule"><ShieldCheck size={14} /><span>I won’t hand you the answer. I’ll help you earn it.</span></div>
+              <div className="mentor-rule"><ShieldCheck size={14} /><span>Ask freely. Chat is for learning; practice is separate and ungraded.</span></div>
               <div className="chat-context"><span>DAY {activeDay} · {detail.title.toUpperCase()}</span><span className="context-live"><i /> LIVE</span></div>
               <div className="chat-messages" aria-live="polite">
                 {mentor.messages.slice(-5).map((message, index) => (
@@ -409,23 +444,14 @@ export default function LearningDashboard() {
               {mentor.error && <div className="chat-error" role="alert">{mentor.error}</div>}
               <div className="quick-actions">
                 {[
-                  { label: "Hint", icon: Lightbulb },
                   { label: "Explain again", icon: MessageSquareText },
-                  { label: "Show example", icon: Code2 },
-                  { label: "Test me", icon: FlaskConical },
+                  { label: "Give an example", icon: Code2 },
                 ].map(({ label, icon: Icon }) => (
-                  <button key={label} className="quick-action" onClick={() => handleQuickAction(label)}>
+                  <button key={label} className="quick-action" onClick={() => sendMessage(label === "Explain again" ? "Explain the lesson more simply, without asking me a quiz question." : "Give me one small example of the lesson, with a short explanation.")}>
                     <Icon size={13} /> {label}
                   </button>
                 ))}
               </div>
-              {hintCount > 0 && (
-                <div className="hint-meter" role="status">
-                  <Lightbulb size={12} />
-                  <span>{hintCount} of 3 hints used in this session</span>
-                  <strong>Not scored</strong>
-                </div>
-              )}
               <form className="chat-composer" onSubmit={handleSubmit}>
                 <input
                   value={draft}
@@ -443,9 +469,9 @@ export default function LearningDashboard() {
 
               <div className="today-progress">
                 <div className="today-progress-head"><strong>Today’s checklist</strong><button className="text-icon" aria-label="Checklist options"><MoreHorizontal size={16} /></button></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Tell the mentor your experience</strong><small>First step · no code required</small></div><ArrowRight size={14} /></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Complete the placement check</strong><small>Not available yet</small></div><ArrowRight size={14} /></div>
-                <div className="checklist-item"><span className="check-empty" /><div><strong>Set up a Drupal 7 environment</strong><small>After the placement check</small></div><LockKeyhole size={14} /></div>
+                <div className="checklist-item"><span className="check-empty" /><div><strong>Read the web-request lesson</strong><small>Available now · 5 min</small></div><ArrowRight size={14} /></div>
+                <div className="checklist-item"><span className="check-empty" /><div><strong>Try the sequence practice</strong><small>Optional · not graded</small></div><ArrowRight size={14} /></div>
+                <div className="checklist-item"><span className="check-empty" /><div><strong>Take the placement assessment</strong><small>Not implemented yet</small></div><LockKeyhole size={14} /></div>
                 <button className="checklist-link" onClick={() => setNotice("Placement, saved progress, and the daily checklist are not connected yet.")}>Progress tracking status <ArrowRight size={13} /></button>
               </div>
             </aside>

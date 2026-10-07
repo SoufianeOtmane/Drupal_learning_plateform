@@ -26,7 +26,7 @@ export const learningDays: ReadonlyArray<{
   title: string;
   state: "done" | "current" | "upcoming" | "locked";
 }> = [
-  { day: 1, title: "Foundations check", state: "current" },
+  { day: 1, title: "Web request basics", state: "current" },
 ] as const;
 
 const navigation = [
@@ -110,7 +110,7 @@ export default function AppSidebar({
         </div>
         <div className="path-level">
           <span className="level-number">00</span>
-          <div><strong>Foundations check</strong><span>Day 1 · placement</span></div>
+          <div><strong>Foundations</strong><span>Day 1 · web request basics</span></div>
           <ChevronDown size={14} />
         </div>
         <div className="day-list" aria-label="Learning path days">
