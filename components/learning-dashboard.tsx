@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import AppSidebar, { learningDays } from "@/components/app-sidebar";
+import { useMentorChat } from "@/hooks/use-mentor-chat";
 import {
   AlarmClock,
   ArrowRight,
@@ -174,7 +175,6 @@ function SkillBars() {
 
 export default function LearningDashboard() {
   const [activeDay, setActiveDay] = useState(9);
-  const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [hintCount, setHintCount] = useState(0);
   const [lessonStarted, setLessonStarted] = useState(false);
@@ -185,6 +185,7 @@ export default function LearningDashboard() {
   );
   const [attemptSaved, setAttemptSaved] = useState(false);
   const [notice, setNotice] = useState("");
+  const mentor = useMentorChat(initialMessages);
   const detail = lessonDetails[activeDay];
   const hintPenalty = hintCosts.slice(0, hintCount).reduce((total, cost) => total + cost, 0);
 
@@ -200,35 +201,25 @@ export default function LearningDashboard() {
   function sendMessage(text: string) {
     const cleanText = text.trim();
     if (!cleanText) return;
-    const lower = cleanText.toLowerCase();
-    let response =
-      detail.firstStep;
-
-    if (lower.includes("skip")) {
-      response = "No. Skipping is locked until you demonstrate the objective. Start with the access callback.";
-    } else if (lower.includes("hint")) {
+    if (cleanText.toLowerCase().includes("hint")) {
       if (hintCount >= 3) {
-        response = "No hints remain. Make an attempt before requesting further help.";
-      } else {
-        const nextHint = hintCount + 1;
-        setHintCount(nextHint);
-        const nextCost = hintCosts[nextHint - 1];
-        const totalPenalty = hintCosts.slice(0, nextHint).reduce((total, cost) => total + cost, 0);
-        response = `${detail.hints[nextHint - 1]} Hint ${nextHint} costs ${nextCost} points (${totalPenalty} total penalty).`;
+        setNotice("All 3 hints used. Make an attempt before requesting more help.");
+        return;
       }
-    } else if (lower.includes("example")) {
-      response = "I won’t provide a complete solution before an attempt. Write the menu item skeleton first; then I can review it.";
-    } else if (lower.includes("test me")) {
-      response = detail.testQuestion;
-    } else if (lower.includes("explain")) {
-      response = `Focus on one decision: ${detail.topic.toLowerCase()}. Explain the purpose in your own words, then connect it to a real Drupal 7 site.`;
+      const nextHint = hintCount + 1;
+      const nextCost = hintCosts[nextHint - 1];
+      const totalPenalty = hintCosts.slice(0, nextHint).reduce((total, cost) => total + cost, 0);
+      setHintCount(nextHint);
+      void mentor.sendMessage(
+        `${cleanText}. Give progressive hint ${nextHint} of 3 only; state that it costs ${nextCost} points and the total hint penalty is ${totalPenalty} points. Do not reveal the full solution.`,
+        `Current Drupal 7 exercise: ${detail.title}. Objective: ${detail.topic}. Required score: 80/100. The next level gate requires 85%.`,
+      );
+    } else {
+      void mentor.sendMessage(
+        cleanText,
+        `Current Drupal 7 exercise: ${detail.title}. Objective: ${detail.topic}. Required score: 80/100. The next level gate requires 85%.`,
+      );
     }
-
-    setMessages((current) => [
-      ...current,
-      { role: "you", text: cleanText },
-      { role: "mentor", text: response },
-    ]);
     setDraft("");
   }
 
@@ -249,10 +240,10 @@ export default function LearningDashboard() {
     setActiveDay(day);
     setLessonStarted(false);
     setHintCount(0);
-    setMessages([
+    mentor.resetMessages([
       {
         role: "mentor",
-        text: `${lessonDetails[day].topic}. Start with the objective, then show me your own attempt before asking for a complete example.`,
+        text: `${lessonDetails[day].topic}. ${lessonDetails[day].firstStep}`,
       },
     ]);
     setNotice(`Day ${day} selected — your workspace is ready.`);
@@ -433,16 +424,18 @@ export default function LearningDashboard() {
               <div className="mentor-rule"><ShieldCheck size={14} /><span>I won’t hand you the answer. I’ll help you earn it.</span></div>
               <div className="chat-context"><span>LESSON {activeDay} · {detail.title.toUpperCase()}</span><span className="context-live"><i /> LIVE</span></div>
               <div className="chat-messages" aria-live="polite">
-                {messages.slice(-5).map((message, index) => (
+                {mentor.messages.slice(-5).map((message, index) => (
                   <div className={`chat-message ${message.role}`} key={`${message.role}-${index}-${message.text.slice(0, 12)}`}>
                     {message.role === "mentor" && <div className="message-avatar"><Bot size={14} /></div>}
                     <div className="message-bubble"><span>{message.text}</span></div>
                   </div>
                 ))}
+                {mentor.isSending && <div className="mentor-typing" role="status">Mentor is reviewing your message…</div>}
                 {lessonStarted && (
                   <div className="lesson-started"><Sparkles size={13} /> Lesson workspace started</div>
                 )}
               </div>
+              {mentor.error && <div className="chat-error" role="alert">{mentor.error}</div>}
               <div className="quick-actions">
                 {[
                   { label: "Hint", icon: Lightbulb },
@@ -466,12 +459,13 @@ export default function LearningDashboard() {
                 <input
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Ask your mentor anything..."
+                  placeholder={mentor.isSending ? "Mentor is responding..." : "Ask your mentor anything..."}
                   aria-label="Message your mentor"
+                  disabled={mentor.isSending}
                 />
                 <div className="composer-bottom">
                   <span><span className="composer-status" /> Drupal 7 context active</span>
-                  <button className="send-button" type="submit" aria-label="Send message" disabled={!draft.trim()}><Send size={15} /></button>
+                  <button className="send-button" type="submit" aria-label="Send message" disabled={!draft.trim() || mentor.isSending}><Send size={15} /></button>
                 </div>
               </form>
               <div className="mentor-footnote"><LockKeyhole size={12} /> Reference solution stays locked until a passing attempt.</div>

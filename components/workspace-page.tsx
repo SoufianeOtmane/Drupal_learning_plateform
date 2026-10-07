@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { MentorMessage, useMentorChat } from "@/hooks/use-mentor-chat";
 import {
   ArrowRight,
   AlarmClock,
@@ -69,8 +70,6 @@ const practiceExercises = [
   { title: "Parameterize a database query", skill: "Database API", level: "Ready", time: "20 min", icon: Code2 },
   { title: "Validate a Form API submission", skill: "Form API", level: "Ready", time: "30 min", icon: FlaskConical },
 ];
-
-type ChatMessage = { role: "mentor" | "you"; text: string };
 
 function OverviewContent() {
   return (
@@ -154,28 +153,18 @@ function PracticeContent({ onNotice }: { onNotice: (message: string) => void }) 
 }
 
 function MentorContent() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const initialMessages: MentorMessage[] = [
     { role: "mentor", text: "I’m your Drupal 7 mentor. Bring me a question or show me an attempt. I’ll guide you, but I won’t skip the work for you." },
     { role: "you", text: "What should I check before exposing a custom page callback?" },
     { role: "mentor", text: "Start with access. Which permission should be required, and what access callback will enforce it? Show me your hook_menu() item and I’ll review it." },
-  ]);
+  ];
   const [draft, setDraft] = useState("");
+  const mentor = useMentorChat(initialMessages);
 
   function sendMessage(text: string) {
     const question = text.trim();
-    if (!question) return;
-    const normalized = question.toLowerCase();
-    let answer = "Show me what you have tried so far. I’ll review your approach against Drupal 7 best practices.";
-    if (normalized.includes("skip")) {
-      answer = "No. Skipping is locked until you demonstrate the objective. Start with the access check.";
-    } else if (normalized.includes("hint")) {
-      answer = "Hint 1/3: Drupal 7 hook_menu() items can define an access callback and arguments. Try identifying the permission before writing the page output.";
-    } else if (normalized.includes("example")) {
-      answer = "I won’t hand over a full solution before an honest attempt. Sketch the menu item first and I’ll review it.";
-    } else if (normalized.includes("test")) {
-      answer = "Quick check: which Drupal 7 callback checks a named permission for the current user?";
-    }
-    setMessages((current) => [...current, { role: "you", text: question }, { role: "mentor", text: answer }]);
+    if (!question || mentor.isSending) return;
+    void mentor.sendMessage(question);
     setDraft("");
   }
 
@@ -186,26 +175,28 @@ function MentorContent() {
 
   return (
     <section className="workspace-panel full-chat-panel">
-      <div className="chat-panel-top"><div className="mentor-heading"><div className="mentor-avatar"><Bot size={18} /><span /></div><div><strong>Strict mentor</strong><span><i /> Drupal 7 context active</span></div></div><span className="demo-pill">DEMO CHAT</span></div>
+      <div className="chat-panel-top"><div className="mentor-heading"><div className="mentor-avatar"><Bot size={18} /><span /></div><div><strong>Strict mentor</strong><span><i /> Gemini · server-side key</span></div></div><span className="demo-pill">STREAMING</span></div>
       <div className="mentor-rule"><ShieldCheck size={14} /> I won’t hand you the answer. I’ll help you earn it.</div>
       <div className="full-chat-messages" aria-live="polite">
-        {messages.map((message, index) => (
+        {mentor.messages.map((message, index) => (
           <div className={`chat-message ${message.role}`} key={`${index}-${message.role}`}>
             {message.role === "mentor" && <div className="message-avatar"><Bot size={14} /></div>}
             <div className="message-bubble"><span>{message.text}</span></div>
           </div>
         ))}
+        {mentor.isSending && <div className="mentor-typing" role="status">Mentor is reviewing your message…</div>}
       </div>
+      {mentor.error && <div className="chat-error" role="alert">{mentor.error}</div>}
       <div className="mentor-shortcuts">
         <button onClick={() => sendMessage("Give me a hint")}><Lightbulb size={13} /> Hint</button>
         <button onClick={() => sendMessage("Test me")}><FlaskConical size={13} /> Test me</button>
         <button onClick={() => sendMessage("Can you show me an example?")}><Code2 size={13} /> Show example</button>
       </div>
       <form className="full-chat-composer" onSubmit={submit}>
-        <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Ask your mentor anything..." aria-label="Message your mentor" />
-        <button className="send-button" type="submit" disabled={!draft.trim()} aria-label="Send message"><Send size={15} /></button>
+        <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={mentor.isSending ? "Mentor is responding..." : "Ask your mentor anything..."} aria-label="Message your mentor" disabled={mentor.isSending} />
+        <button className="send-button" type="submit" disabled={!draft.trim() || mentor.isSending} aria-label="Send message"><Send size={15} /></button>
       </form>
-      <p className="chat-demo-note"><Sparkles size={13} /> Frontend demo: replies are preset and aren’t connected to an AI provider yet.</p>
+      <p className="chat-demo-note"><Sparkles size={13} /> Your API key stays on the server. Add a rotated key to <code>.env.local</code> to enable Gemini.</p>
     </section>
   );
 }
